@@ -2,267 +2,651 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>みなみ歯科医院｜お問い合わせ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>みなみ歯科医院｜お問い合わせAI</title>
   <style>
-    :root { --bg:#f5f7ff; --card:#ffffff; --text:#1f2a44; --muted:#5b6b8b; --line:#d7e0f2; --btn:#3b82f6; --danger:#dc2626; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; background:linear-gradient(180deg,#eef3ff,#f9fbff); color:var(--text); }
-    .wrap { max-width:900px; margin:0 auto; padding:18px; }
-    .header { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; }
-    .badges { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .badge { font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:#f3f6ff; }
-    .actions { display:flex; gap:8px; }
-    .ghostbtn {
-      font-size:12px; padding:8px 10px; border:1px solid var(--line); border-radius:12px;
-      background:transparent; color:var(--text); cursor:pointer;
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1b33;
+      --panel2:#0c1730;
+      --text:#e6edf7;
+      --muted:#a9b6cc;
+      --line:#243759;
+      --brand:#3b82f6;
+      --brand2:#2563eb;
+      --danger:#ef4444;
+      --bubble:#14254a;
+      --bubble2:#102042;
+      --shadow: 0 10px 40px rgba(0,0,0,.35);
+      --radius:16px;
     }
-    .ghostbtn:hover { background:rgba(59,130,246,.08); }
-    .danger { border-color: rgba(220,38,38,.6); color: #b91c1c; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(31,42,68,.12); }
-    .notice { padding:12px 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; line-height:1.6; }
-    .notice b { color:var(--text); }
-    .profileLine { padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-    .chat { height:62vh; min-height:420px; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
-    .msg { max-width:85%; padding:10px 12px; border-radius:14px; border:1px solid var(--line); white-space:pre-wrap; line-height:1.55; }
-    .me { align-self:flex-end; background:rgba(59,130,246,.14); }
-    .ai { align-self:flex-start; background:#f6f8ff; }
-    .bar { display:flex; gap:10px; padding:12px; border-top:1px solid var(--line); background:#f1f5ff; }
-    textarea { flex:1; resize:none; border-radius:12px; border:1px solid var(--line); background:#ffffff; color:var(--text); padding:10px 10px; min-height:44px; max-height:160px; outline:none; }
-    button.send { width:120px; border:0; border-radius:12px; background:var(--btn); color:white; font-weight:700; cursor:pointer; }
-    button.send:disabled { opacity:.55; cursor:not-allowed; }
-    .small { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
-    a { color:#2563eb; }
-    .divider { height:1px; background:var(--line); margin:10px 0; opacity:.8; }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      background: radial-gradient(1200px 700px at 50% -10%, #1a2a4d, var(--bg));
+      color:var(--text);
+      min-height:100vh;
+      padding:20px 14px;
+    }
+
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      display:flex;
+      justify-content:center;
+    }
+
+    .app{
+      width:min(920px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .topbar{
+      padding:14px 16px 10px;
+      background: rgba(0,0,0,.12);
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+
+    .badges{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-bottom:10px;
+    }
+    .badge{
+      font-size:12px;
+      color:#dbe7ff;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      white-space:nowrap;
+    }
+
+    .notice{
+      font-size:12.5px;
+      color:var(--muted);
+      line-height:1.6;
+      background: rgba(15,27,51,.55);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding:10px 12px;
+    }
+    .notice b{color:#e9f0ff}
+    .notice .tel{color:#cfe3ff; font-weight:700; letter-spacing:.04em}
+
+    .meta{
+      display:flex;
+      gap:10px;
+      padding:10px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      color:var(--muted);
+      font-size:12px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .meta .left, .meta .right{display:flex; gap:10px; flex-wrap:wrap}
+
+    .main{
+      display:grid;
+      grid-template-rows: 1fr auto;
+      height: min(70vh, 640px);
+      background: rgba(10,18,35,.35);
+    }
+
+    .chat{
+      padding:14px 14px 10px;
+      overflow:auto;
+      scroll-behavior:smooth;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      margin:10px 0;
+      align-items:flex-end;
+    }
+    .row.me{justify-content:flex-end;}
+    .row.ai{justify-content:flex-start;}
+
+    .bubble{
+      max-width: 78%;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding:12px 12px;
+      line-height:1.6;
+      font-size:14px;
+      background: rgba(20,37,74,.55);
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    .row.me .bubble{
+      background: rgba(59,130,246,.22);
+      border-color: rgba(59,130,246,.35);
+    }
+    .row.ai .bubble{
+      background: rgba(15,27,51,.58);
+      border-color: rgba(255,255,255,.10);
+    }
+
+    .small{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+
+    .tools{
+      padding:12px 14px 14px;
+      border-top:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.08);
+    }
+
+    .quick{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+    .qbtn{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:#e9f0ff;
+      padding:8px 10px;
+      border-radius: 999px;
+      font-size:13px;
+      cursor:pointer;
+      transition:.15s;
+    }
+    .qbtn:hover{transform: translateY(-1px); background: rgba(255,255,255,.08);}
+
+    .inputbar{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+    }
+    textarea{
+      width:100%;
+      resize:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,18,35,.35);
+      color:var(--text);
+      border-radius: 14px;
+      padding:12px 12px;
+      font-size:14px;
+      line-height:1.5;
+      outline:none;
+      min-height: 46px;
+      max-height: 140px;
+    }
+    textarea:focus{border-color: rgba(59,130,246,.6); box-shadow: 0 0 0 3px rgba(59,130,246,.15);}
+
+    .send{
+      flex: 0 0 auto;
+      min-width: 110px;
+      height: 46px;
+      border:none;
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--brand), var(--brand2));
+      color:white;
+      font-weight:700;
+      cursor:pointer;
+      transition:.15s;
+    }
+    .send:hover{transform: translateY(-1px);}
+    .send:disabled{opacity:.55; cursor:not-allowed; transform:none;}
+
+    .foot{
+      margin-top:8px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .linkbtn{
+      color:#cfe3ff;
+      text-decoration:underline;
+      cursor:pointer;
+    }
+    .danger{
+      color:#ffd4d4;
+      border-color: rgba(239,68,68,.35) !important;
+      background: rgba(239,68,68,.12) !important;
+    }
+
+    /* modal */
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      background: rgba(0,0,0,.55);
+      z-index:9999;
+    }
+    .modal.on{display:flex;}
+    .card{
+      width:min(560px, 100%);
+      background: rgba(15,27,51,.92);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+    .card h2{
+      margin:0 0 10px;
+      font-size:18px;
+    }
+    .card p{
+      margin:8px 0;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:13px;
+    }
+    .form{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+    }
+    .field label{
+      display:block;
+      font-size:12px;
+      color:#cfe3ff;
+      margin-bottom:6px;
+    }
+    .field input{
+      width:100%;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(10,18,35,.35);
+      color:var(--text);
+      border-radius: 12px;
+      padding:10px 10px;
+      font-size:14px;
+      outline:none;
+    }
+    .field input:focus{border-color: rgba(59,130,246,.6); box-shadow: 0 0 0 3px rgba(59,130,246,.15);}
+
+    .actions{
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      margin-top:12px;
+      flex-wrap:wrap;
+    }
+    .btn{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:#e9f0ff;
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+    }
+    .btn.primary{
+      border:none;
+      background: linear-gradient(180deg, var(--brand), var(--brand2));
+    }
+    .btn:disabled{opacity:.55; cursor:not-allowed;}
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="header">
-      <div class="badges">
-        <div class="badge">お問い合わせAI（β）</div>
-        <div class="badge">必要に応じて受診をご案内します</div>
-      </div>
-      <div class="actions">
-        <button id="editProfile" class="ghostbtn">入力情報を変更</button>
-        <button id="resetProfile" class="ghostbtn danger">入力情報リセット</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="notice">
-        <b>ご注意</b>：このチャットは診断の確定は行いません。<br>
-        このチャットではAIが返信します。<br>
-        強い腫れ／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、当院まで電話０７９８－４７－８１１１へご連絡ください。<br>
-        <span style="opacity:.9;">※院内で対応内容を確認するため、会話内容は記録されます（同意のうえご利用ください）。</span>
+    <div class="app">
+      <div class="topbar">
+        <div class="badges">
+          <span class="badge">お問い合わせAI</span>
+          <span class="badge">必要に応じて受診をご案内します</span>
+        </div>
+        <div class="notice">
+          <b>ご注意：</b>このチャットは診断の確定は行いません。<br>
+          強い痛み／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、当院までお電話
+          <span class="tel">0798-47-8111</span> へご連絡ください。<br>
+          ※院内で対応内容を確認するため、会話内容は記録されます（同意のうえご利用ください）。
+        </div>
       </div>
 
-      <div id="profileLine" class="profileLine">
-        <div>ログ識別：<span id="profileStatus">未入力</span></div>
-        <div>セッション：<span id="sessionStatus">未作成</span></div>
+      <div class="meta">
+        <div class="left">
+          <span id="patientMeta">ログ識別：未設定</span>
+        </div>
+        <div class="right">
+          <span id="sessionMeta">セッション：-</span>
+        </div>
       </div>
 
-      <div id="chat" class="chat"></div>
+      <div class="main">
+        <div id="chat" class="chat"></div>
 
-      <div class="bar">
-        <textarea id="input" placeholder="例：歯がしみる／詰め物が取れた／腫れてきた など"></textarea>
-        <button id="send" class="send">送信</button>
+        <div class="tools">
+          <div class="quick">
+            <button class="qbtn" data-q="痛い">痛い</button>
+            <button class="qbtn" data-q="詰め物が取れた">詰め物が取れた</button>
+            <button class="qbtn" data-q="しみる">しみる</button>
+            <button class="qbtn" data-q="腫れた">腫れた</button>
+            <button class="qbtn qbtnReset danger" id="resetBtn">入力情報リセット</button>
+          </div>
+
+          <div class="inputbar">
+            <textarea id="input" placeholder="例：歯がしみる／詰め物が取れた／腫れてきた など"></textarea>
+            <button id="sendBtn" class="send">送信</button>
+          </div>
+
+          <div class="foot">
+            <span>送信内容はこの端末内（ブラウザ）に保存されます。共有端末の場合は「入力情報リセット」を押してください。</span>
+            <span class="linkbtn" id="clearChatBtn">会話履歴を消す</span>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <div class="small">
-      ・会話履歴はこの端末内（ブラウザ）に保存されます。共有端末の場合は「入力情報リセット」を押してください。<br>
-      ・予約や個別対応が必要な場合は、電話や来院をご案内します。
     </div>
   </div>
 
-<script>
-  // ★ここだけ確認：あなたのWorkerのURL
-  const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
+  <!-- 同意＆入力モーダル -->
+  <div id="modal" class="modal">
+    <div class="card">
+      <h2>ご利用前の確認</h2>
+      <p>このチャットは診断の確定は行いません。必要に応じて受診をご案内します。<br>
+        院内で内容確認のため会話内容は記録されます。</p>
+      <p>ログ確認のため、最初に「氏名」と「生年月日」を入力してください。</p>
 
-  const chatEl = document.getElementById("chat");
-  const inputEl = document.getElementById("input");
-  const sendBtn = document.getElementById("send");
-  const profileStatusEl = document.getElementById("profileStatus");
-  const sessionStatusEl = document.getElementById("sessionStatus");
-  const editProfileBtn = document.getElementById("editProfile");
-  const resetProfileBtn = document.getElementById("resetProfile");
+      <div class="form">
+        <div class="field">
+          <label>氏名（例：山田 太郎）</label>
+          <input id="nameInput" type="text" autocomplete="name" placeholder="例：山田 太郎">
+        </div>
+        <div class="field">
+          <label>生年月日（例：1990-01-31）</label>
+          <input id="dobInput" type="date">
+        </div>
+      </div>
 
-  const STORAGE_KEY = "minami_inquiry_chat_v1";
-  const PROFILE_KEY = "minami_patient_profile_v1";
-  const SESSION_KEY = "minami_inquiry_session_v1";
+      <div class="actions">
+        <button id="cancelModalBtn" class="btn">キャンセル</button>
+        <button id="okModalBtn" class="btn primary" disabled>同意して開始</button>
+      </div>
+    </div>
+  </div>
 
-  let messages = loadMessages();
+  <script>
+    // ★ここだけあなたのWorkerに合わせる
+    const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
 
-  function loadMessages() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch { return []; }
-  }
-  function saveMessages() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30)));
-  }
+    // localStorage keys
+    const LS_PATIENT = "patient";
+    const LS_SESSION = "session_id";
+    const LS_MESSAGES = "messages";
+    const LS_FAQ_FLOW = "faq_flow";
 
-  function getOrCreateSessionId() {
-    let id = localStorage.getItem(SESSION_KEY);
-    if (id) return id;
-    id = (crypto?.randomUUID?.() || ("s_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
-    localStorage.setItem(SESSION_KEY, id);
-    return id;
-  }
+    const chatEl = document.getElementById("chat");
+    const inputEl = document.getElementById("input");
+    const sendBtn = document.getElementById("sendBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const clearChatBtn = document.getElementById("clearChatBtn");
 
-  function getProfile() {
-    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null; } catch { return null; }
-  }
-  function setProfile(p) {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
-    refreshStatus();
-  }
-  function clearProfile() {
-    localStorage.removeItem(PROFILE_KEY);
-    localStorage.removeItem(SESSION_KEY);
-    refreshStatus();
-  }
+    const modal = document.getElementById("modal");
+    const nameInput = document.getElementById("nameInput");
+    const dobInput = document.getElementById("dobInput");
+    const okModalBtn = document.getElementById("okModalBtn");
+    const cancelModalBtn = document.getElementById("cancelModalBtn");
 
-  function validateDob(dob) {
-    // ざっくり YYYY-MM-DD（厳密でなくOK）
-    return /^\d{4}-\d{2}-\d{2}$/.test(dob);
-  }
+    const patientMeta = document.getElementById("patientMeta");
+    const sessionMeta = document.getElementById("sessionMeta");
 
-  function ensureProfile(forceReinput=false) {
-    if (!forceReinput) {
-      const existing = getProfile();
-      if (existing && existing.name && existing.dob && existing.consent === true) return existing;
-    }
-
-    const consent = confirm("このチャット内容は、院内で内容確認・対応のために保存されます。よろしいですか？");
-    if (!consent) return null;
-
-    const name = prompt("患者氏名（フルネーム）を入力してください");
-    if (!name) return null;
-
-    let dob = prompt("生年月日を入力してください（例：1990-01-31）");
-    if (!dob) return null;
-    dob = dob.trim();
-
-    if (!validateDob(dob)) {
-      const ok = confirm("生年月日の形式が「YYYY-MM-DD」ではない可能性があります。このまま保存しますか？");
-      if (!ok) return null;
-    }
-
-    const p = { name: name.trim(), dob: dob, consent: true, updated_at: new Date().toISOString() };
-    setProfile(p);
-
-    // セッションも確定
-    getOrCreateSessionId();
-    return p;
-  }
-
-  function refreshStatus() {
-    const p = getProfile();
-    const sid = localStorage.getItem(SESSION_KEY);
-
-    profileStatusEl.textContent = p && p.name && p.dob
-      ? `${p.name} / ${p.dob}`
-      : "未入力";
-
-    sessionStatusEl.textContent = sid ? sid : "未作成";
-  }
-
-  function addBubble(role, text) {
-    const div = document.createElement("div");
-    div.className = "msg " + (role === "user" ? "me" : "ai");
-    div.textContent = text;
-    chatEl.appendChild(div);
-    chatEl.scrollTop = chatEl.scrollHeight;
-  }
-
-  function render() {
-    chatEl.innerHTML = "";
-    if (messages.length === 0) {
-      addBubble("assistant",
-        "こんにちは。症状や状況を教えてください。\n" +
-        "例：いつから／どの歯（右上など）／痛み・しみ・腫れ／治療中の歯か など\n\n" +
-        "※送信前に、ログ確認のため氏名・生年月日入力（同意）が出ます。"
-      );
-      return;
-    }
-    for (const m of messages) addBubble(m.role, m.content);
-  }
-
-  async function send() {
-    const text = inputEl.value.trim();
-    if (!text) return;
-
-    // プロフィール未入力ならここで取得
-    const profile = ensureProfile(false);
-    if (!profile) {
-      addBubble("assistant", "同意・氏名・生年月日の入力が確認できないため、送信を中止しました。");
-      return;
-    }
-    const sessionId = getOrCreateSessionId();
-
-    messages.push({ role:"user", content:text });
-    addBubble("user", text);
-    inputEl.value = "";
-    saveMessages();
-
-    sendBtn.disabled = true;
-    sendBtn.textContent = "送信中";
-
-    try {
-      const payload = {
-        session_id: sessionId,
-        patient: { name: profile.name, dob: profile.dob },
-        user_agent: navigator.userAgent,
-        page_url: location.href,
-        messages: messages
-      };
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
+    function uuid() {
+      if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      // fallback
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        const v = c === "x" ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
       });
+    }
 
-      if (!res.ok) {
-        const errText = await res.text().catch(()=> "");
-        throw new Error("API error: " + res.status + " " + errText);
+    function loadPatient() {
+      try { return JSON.parse(localStorage.getItem(LS_PATIENT) || "null"); }
+      catch { return null; }
+    }
+
+    function savePatient(p) {
+      localStorage.setItem(LS_PATIENT, JSON.stringify(p));
+      localStorage.setItem("consented", "true");
+    }
+
+    function loadSessionId() {
+      let sid = localStorage.getItem(LS_SESSION);
+      if (!sid) {
+        sid = uuid();
+        localStorage.setItem(LS_SESSION, sid);
+      }
+      return sid;
+    }
+
+    function loadMessages() {
+      try { return JSON.parse(localStorage.getItem(LS_MESSAGES) || "[]"); }
+      catch { return []; }
+    }
+
+    function saveMessages(msgs) {
+      localStorage.setItem(LS_MESSAGES, JSON.stringify(msgs));
+    }
+
+    function addMessage(role, content) {
+      const msgs = loadMessages();
+      msgs.push({ role, content, t: Date.now() });
+      saveMessages(msgs);
+      render();
+      scrollToBottom();
+    }
+
+    function render() {
+      const msgs = loadMessages();
+      chatEl.innerHTML = "";
+      for (const m of msgs) {
+        const row = document.createElement("div");
+        row.className = "row " + (m.role === "user" ? "me" : "ai");
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.textContent = m.content;
+        row.appendChild(bubble);
+        chatEl.appendChild(row);
+      }
+      updateMeta();
+    }
+
+    function updateMeta() {
+      const p = loadPatient();
+      const sid = loadSessionId();
+      sessionMeta.textContent = "セッション：" + sid;
+      if (p?.name && p?.dob) {
+        patientMeta.textContent = `ログ識別：${p.name} / ${p.dob}`;
+      } else {
+        patientMeta.textContent = "ログ識別：未設定";
+      }
+    }
+
+    function scrollToBottom() {
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function openModal() {
+      modal.classList.add("on");
+      nameInput.value = "";
+      dobInput.value = "";
+      okModalBtn.disabled = true;
+      setTimeout(() => nameInput.focus(), 80);
+    }
+
+    function closeModal() {
+      modal.classList.remove("on");
+    }
+
+    function validateModal() {
+      const nameOk = nameInput.value.trim().length >= 2;
+      const dobOk = dobInput.value.trim().length >= 8;
+      okModalBtn.disabled = !(nameOk && dobOk);
+    }
+
+    nameInput.addEventListener("input", validateModal);
+    dobInput.addEventListener("input", validateModal);
+
+    okModalBtn.addEventListener("click", () => {
+      const p = {
+        name: nameInput.value.trim(),
+        dob: dobInput.value.trim(), // yyyy-mm-dd
+      };
+      savePatient(p);
+      closeModal();
+      render();
+      addMessage("assistant", "ご入力ありがとうございます。ご相談内容を入力してください。");
+    });
+
+    cancelModalBtn.addEventListener("click", () => {
+      closeModal();
+    });
+
+    // quick buttons
+    document.querySelectorAll(".qbtn[data-q]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const q = btn.getAttribute("data-q");
+        inputEl.value = q;
+        inputEl.focus();
+      });
+    });
+
+    // reset
+    resetBtn.addEventListener("click", () => {
+      if (!confirm("入力情報（氏名・生年月日）とFAQフロー状態をリセットします。よろしいですか？")) return;
+      localStorage.removeItem(LS_PATIENT);
+      localStorage.removeItem("consented");
+      localStorage.removeItem(LS_FAQ_FLOW);
+      updateMeta();
+      openModal();
+    });
+
+    // clear chat
+    clearChatBtn.addEventListener("click", () => {
+      if (!confirm("この端末の会話履歴を削除します。よろしいですか？")) return;
+      localStorage.removeItem(LS_MESSAGES);
+      render();
+    });
+
+    // send
+    async function send() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      const p = loadPatient();
+      if (!p?.name || !p?.dob) {
+        openModal();
+        return;
       }
 
-      const data = await res.json();
-      const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
+      const sid = loadSessionId();
+      addMessage("user", text);
+      inputEl.value = "";
+      autosize();
 
-      messages.push({ role:"assistant", content:reply });
-      addBubble("assistant", reply);
-      saveMessages();
-    } catch (e) {
-      addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
-    } finally {
-      sendBtn.disabled = false;
-      sendBtn.textContent = "送信";
+      sendBtn.disabled = true;
+
+      try {
+        const msgs = loadMessages()
+          .filter(m => m.role === "user" || m.role === "assistant")
+          .slice(-12)
+          .map(m => ({ role: m.role, content: m.content }));
+
+        // ★FAQフロー状態を送る
+        let faqFlow = null;
+        try { faqFlow = JSON.parse(localStorage.getItem(LS_FAQ_FLOW) || "null"); } catch { faqFlow = null; }
+
+        const payload = {
+          messages: msgs,
+          session_id: sid,
+          patient: p,
+          user_agent: navigator.userAgent,
+          page_url: location.href,
+          faq_flow: faqFlow
+        };
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000); // ブラウザ側の待ちも少し余裕
+
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+
+        clearTimeout(timer);
+
+        if (!res.ok) {
+          throw new Error(`API error: ${res.status} ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        const reply = (data && data.reply) ? String(data.reply) : "すみません、うまく回答できませんでした。";
+
+        // ★FAQフロー状態を保存/解除
+        if (data && Object.prototype.hasOwnProperty.call(data, "faq_flow")) {
+          if (data.faq_flow) {
+            localStorage.setItem(LS_FAQ_FLOW, JSON.stringify(data.faq_flow));
+          } else {
+            localStorage.removeItem(LS_FAQ_FLOW);
+          }
+        }
+
+        addMessage("assistant", reply);
+
+      } catch (e) {
+        addMessage("assistant", `通信エラーが発生しました。電波状況をご確認のうえ、もう一度お試しください。\n(${e.message || e})`);
+      } finally {
+        sendBtn.disabled = false;
+      }
     }
-  }
 
-  // UI events
-  sendBtn.addEventListener("click", send);
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-  });
+    sendBtn.addEventListener("click", send);
 
-  editProfileBtn.addEventListener("click", () => {
-    const p = ensureProfile(true);
-    if (p) addBubble("assistant", "入力情報を更新しました。");
-  });
+    // Enter送信（Shift+Enterで改行）
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
 
-  resetProfileBtn.addEventListener("click", () => {
-    const ok = confirm("入力情報（氏名・生年月日）とセッションIDを削除します。よろしいですか？");
-    if (!ok) return;
-    clearProfile();
-    addBubble("assistant", "入力情報をリセットしました。必要に応じて再入力してください。");
-  });
+    // autosize textarea
+    function autosize(){
+      inputEl.style.height = "auto";
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+    }
+    inputEl.addEventListener("input", autosize);
 
-  // init
-  refreshStatus();
-  render();
-</script>
+    // init
+    (function init(){
+      render();
+      autosize();
+
+      const p = loadPatient();
+      const consented = localStorage.getItem("consented") === "true";
+      if (!consented || !p?.name || !p?.dob) {
+        openModal();
+      } else if (loadMessages().length === 0) {
+        addMessage("assistant", "ご相談内容を入力してください。");
+      }
+    })();
+  </script>
 </body>
 </html>
