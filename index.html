@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>みなみ歯科医院｜お問い合わせ</title>
+  <style>
+    :root { --bg:#0b1220; --card:#111a2e; --text:#e9eefc; --muted:#a8b3d6; --line:#243152; --btn:#3b82f6; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; background:linear-gradient(180deg,#070b14,#0b1220); color:var(--text); }
+    .wrap { max-width:900px; margin:0 auto; padding:18px; }
+    .header { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    .badge { font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+    .card { background:rgba(17,26,46,.88); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,.25); }
+    .notice { padding:12px 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; line-height:1.5; }
+    .chat { height:62vh; min-height:420px; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+    .msg { max-width:85%; padding:10px 12px; border-radius:14px; border:1px solid var(--line); white-space:pre-wrap; line-height:1.55; }
+    .me { align-self:flex-end; background:rgba(59,130,246,.18); }
+    .ai { align-self:flex-start; background:rgba(255,255,255,.06); }
+    .meta { font-size:12px; color:var(--muted); margin-top:4px; }
+    .bar { display:flex; gap:10px; padding:12px; border-top:1px solid var(--line); background:rgba(10,15,28,.8); }
+    textarea { flex:1; resize:none; border-radius:12px; border:1px solid var(--line); background:#0a1020; color:var(--text); padding:10px 10px; min-height:44px; max-height:140px; outline:none; }
+    button { width:120px; border:0; border-radius:12px; background:var(--btn); color:white; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .small { font-size:12px; color:var(--muted); margin-top:8px; }
+    a { color:#93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="badge">お問い合わせAI（β）</div>
+      <div class="badge">必要に応じて受診をご案内します</div>
+    </div>
+
+    <div class="card">
+      <div class="notice">
+        ※このチャットは診断の確定は行いません。<br>
+        強い腫れ／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、救急や医療機関へご連絡ください。
+      </div>
+
+      <div id="chat" class="chat"></div>
+
+      <div class="bar">
+        <textarea id="input" placeholder="例：歯がしみる、詰め物が取れた、腫れてきた など"></textarea>
+        <button id="send">送信</button>
+      </div>
+    </div>
+
+    <div class="small">
+      送信内容はこの端末内に履歴保存されます（ブラウザの保存領域）。共有端末の場合はご注意ください。
+    </div>
+  </div>
+
+<script>
+  // ★ここだけ変更：あなたのWorkerのURL（例：https://your-worker.yourname.workers.dev/api/chat）
+  const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
+
+  const chatEl = document.getElementById("chat");
+  const inputEl = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+
+  const STORAGE_KEY = "minami_inquiry_chat_v1";
+  let messages = load();
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30))); // 直近30往復だけ保持
+  }
+
+  function addBubble(role, text) {
+    const div = document.createElement("div");
+    div.className = "msg " + (role === "user" ? "me" : "ai");
+    div.textContent = text;
+
+    chatEl.appendChild(div);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function render() {
+    chatEl.innerHTML = "";
+    if (messages.length === 0) {
+      addBubble("assistant", "こんにちは。症状や状況を教えてください。\n例：いつから／どの歯（右上など）／痛み・しみ・腫れ／治療中の歯か など");
+      return;
+    }
+    for (const m of messages) addBubble(m.role, m.content);
+  }
+
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    messages.push({ role:"user", content:text });
+    addBubble("user", text);
+    inputEl.value = "";
+    save();
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "送信中";
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ messages })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(()=> "");
+        throw new Error("API error: " + res.status + " " + errText);
+      }
+
+      const data = await res.json();
+      const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
+
+      messages.push({ role:"assistant", content:reply });
+      addBubble("assistant", reply);
+      save();
+    } catch (e) {
+      addBubble("assistant", "通信エラーが発生しました。電波状況をご確認のうえ、もう一度お試しください。\n（" + e.message + "）");
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "送信";
+    }
+  }
+
+  sendBtn.addEventListener("click", send);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  render();
+</script>
+</body>
+</html>
