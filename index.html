@@ -5,76 +5,171 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>みなみ歯科医院｜お問い合わせ</title>
   <style>
-    :root { --bg:#0b1220; --card:#111a2e; --text:#e9eefc; --muted:#a8b3d6; --line:#243152; --btn:#3b82f6; }
+    :root { --bg:#0b1220; --card:#111a2e; --text:#e9eefc; --muted:#a8b3d6; --line:#243152; --btn:#3b82f6; --danger:#ef4444; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; background:linear-gradient(180deg,#070b14,#0b1220); color:var(--text); }
     .wrap { max-width:900px; margin:0 auto; padding:18px; }
-    .header { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    .header { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; }
+    .badges { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     .badge { font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+    .actions { display:flex; gap:8px; }
+    .ghostbtn {
+      font-size:12px; padding:8px 10px; border:1px solid var(--line); border-radius:12px;
+      background:transparent; color:var(--text); cursor:pointer;
+    }
+    .ghostbtn:hover { background:rgba(255,255,255,.06); }
+    .danger { border-color: rgba(239,68,68,.5); color: #fecaca; }
     .card { background:rgba(17,26,46,.88); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,.25); }
-    .notice { padding:12px 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; line-height:1.5; }
+    .notice { padding:12px 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; line-height:1.6; }
+    .notice b { color:var(--text); }
+    .profileLine { padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .chat { height:62vh; min-height:420px; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
     .msg { max-width:85%; padding:10px 12px; border-radius:14px; border:1px solid var(--line); white-space:pre-wrap; line-height:1.55; }
     .me { align-self:flex-end; background:rgba(59,130,246,.18); }
     .ai { align-self:flex-start; background:rgba(255,255,255,.06); }
-    .meta { font-size:12px; color:var(--muted); margin-top:4px; }
     .bar { display:flex; gap:10px; padding:12px; border-top:1px solid var(--line); background:rgba(10,15,28,.8); }
-    textarea { flex:1; resize:none; border-radius:12px; border:1px solid var(--line); background:#0a1020; color:var(--text); padding:10px 10px; min-height:44px; max-height:140px; outline:none; }
-    button { width:120px; border:0; border-radius:12px; background:var(--btn); color:white; font-weight:700; cursor:pointer; }
-    button:disabled { opacity:.55; cursor:not-allowed; }
-    .small { font-size:12px; color:var(--muted); margin-top:8px; }
+    textarea { flex:1; resize:none; border-radius:12px; border:1px solid var(--line); background:#0a1020; color:var(--text); padding:10px 10px; min-height:44px; max-height:160px; outline:none; }
+    button.send { width:120px; border:0; border-radius:12px; background:var(--btn); color:white; font-weight:700; cursor:pointer; }
+    button.send:disabled { opacity:.55; cursor:not-allowed; }
+    .small { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
     a { color:#93c5fd; }
+    .divider { height:1px; background:var(--line); margin:10px 0; opacity:.8; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="badge">お問い合わせAI（β）</div>
-      <div class="badge">必要に応じて受診をご案内します</div>
+      <div class="badges">
+        <div class="badge">お問い合わせAI（β）</div>
+        <div class="badge">必要に応じて受診をご案内します</div>
+      </div>
+      <div class="actions">
+        <button id="editProfile" class="ghostbtn">入力情報を変更</button>
+        <button id="resetProfile" class="ghostbtn danger">入力情報リセット</button>
+      </div>
     </div>
 
     <div class="card">
       <div class="notice">
-        ※このチャットは診断の確定は行いません。<br>
-        強い腫れ／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、救急や医療機関へご連絡ください。
+        <b>ご注意</b>：このチャットは診断の確定は行いません。<br>
+        強い腫れ／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、救急や医療機関へご連絡ください。<br>
+        <span style="opacity:.9;">※院内で対応内容を確認するため、会話内容は記録されます（同意のうえご利用ください）。</span>
+      </div>
+
+      <div id="profileLine" class="profileLine">
+        <div>ログ識別：<span id="profileStatus">未入力</span></div>
+        <div>セッション：<span id="sessionStatus">未作成</span></div>
       </div>
 
       <div id="chat" class="chat"></div>
 
       <div class="bar">
-        <textarea id="input" placeholder="例：歯がしみる、詰め物が取れた、腫れてきた など"></textarea>
-        <button id="send">送信</button>
+        <textarea id="input" placeholder="例：歯がしみる／詰め物が取れた／腫れてきた など"></textarea>
+        <button id="send" class="send">送信</button>
       </div>
     </div>
 
     <div class="small">
-      送信内容はこの端末内に履歴保存されます（ブラウザの保存領域）。共有端末の場合はご注意ください。
+      ・会話履歴はこの端末内（ブラウザ）に保存されます。共有端末の場合は「入力情報リセット」を押してください。<br>
+      ・予約や個別対応が必要な場合は、電話や来院をご案内します。
     </div>
   </div>
 
 <script>
-  // ★ここだけ変更：あなたのWorkerのURL（例：https://your-worker.yourname.workers.dev/api/chat）
+  // ★ここだけ確認：あなたのWorkerのURL
   const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
 
   const chatEl = document.getElementById("chat");
   const inputEl = document.getElementById("input");
   const sendBtn = document.getElementById("send");
+  const profileStatusEl = document.getElementById("profileStatus");
+  const sessionStatusEl = document.getElementById("sessionStatus");
+  const editProfileBtn = document.getElementById("editProfile");
+  const resetProfileBtn = document.getElementById("resetProfile");
 
   const STORAGE_KEY = "minami_inquiry_chat_v1";
-  let messages = load();
+  const PROFILE_KEY = "minami_patient_profile_v1";
+  const SESSION_KEY = "minami_inquiry_session_v1";
 
-  function load() {
+  let messages = loadMessages();
+
+  function loadMessages() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch { return []; }
   }
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30))); // 直近30往復だけ保持
+  function saveMessages() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30)));
+  }
+
+  function getOrCreateSessionId() {
+    let id = localStorage.getItem(SESSION_KEY);
+    if (id) return id;
+    id = (crypto?.randomUUID?.() || ("s_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+    localStorage.setItem(SESSION_KEY, id);
+    return id;
+  }
+
+  function getProfile() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null; } catch { return null; }
+  }
+  function setProfile(p) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    refreshStatus();
+  }
+  function clearProfile() {
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    refreshStatus();
+  }
+
+  function validateDob(dob) {
+    // ざっくり YYYY-MM-DD（厳密でなくOK）
+    return /^\d{4}-\d{2}-\d{2}$/.test(dob);
+  }
+
+  function ensureProfile(forceReinput=false) {
+    if (!forceReinput) {
+      const existing = getProfile();
+      if (existing && existing.name && existing.dob && existing.consent === true) return existing;
+    }
+
+    const consent = confirm("このチャット内容は、院内で内容確認・対応のために保存されます。よろしいですか？");
+    if (!consent) return null;
+
+    const name = prompt("患者氏名（フルネーム）を入力してください");
+    if (!name) return null;
+
+    let dob = prompt("生年月日を入力してください（例：1990-01-31）");
+    if (!dob) return null;
+    dob = dob.trim();
+
+    if (!validateDob(dob)) {
+      const ok = confirm("生年月日の形式が「YYYY-MM-DD」ではない可能性があります。このまま保存しますか？");
+      if (!ok) return null;
+    }
+
+    const p = { name: name.trim(), dob: dob, consent: true, updated_at: new Date().toISOString() };
+    setProfile(p);
+
+    // セッションも確定
+    getOrCreateSessionId();
+    return p;
+  }
+
+  function refreshStatus() {
+    const p = getProfile();
+    const sid = localStorage.getItem(SESSION_KEY);
+
+    profileStatusEl.textContent = p && p.name && p.dob
+      ? `${p.name} / ${p.dob}`
+      : "未入力";
+
+    sessionStatusEl.textContent = sid ? sid : "未作成";
   }
 
   function addBubble(role, text) {
     const div = document.createElement("div");
     div.className = "msg " + (role === "user" ? "me" : "ai");
     div.textContent = text;
-
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
   }
@@ -82,7 +177,11 @@
   function render() {
     chatEl.innerHTML = "";
     if (messages.length === 0) {
-      addBubble("assistant", "こんにちは。症状や状況を教えてください。\n例：いつから／どの歯（右上など）／痛み・しみ・腫れ／治療中の歯か など");
+      addBubble("assistant",
+        "こんにちは。症状や状況を教えてください。\n" +
+        "例：いつから／どの歯（右上など）／痛み・しみ・腫れ／治療中の歯か など\n\n" +
+        "※送信前に、ログ確認のため氏名・生年月日入力（同意）が出ます。"
+      );
       return;
     }
     for (const m of messages) addBubble(m.role, m.content);
@@ -92,19 +191,35 @@
     const text = inputEl.value.trim();
     if (!text) return;
 
+    // プロフィール未入力ならここで取得
+    const profile = ensureProfile(false);
+    if (!profile) {
+      addBubble("assistant", "同意・氏名・生年月日の入力が確認できないため、送信を中止しました。");
+      return;
+    }
+    const sessionId = getOrCreateSessionId();
+
     messages.push({ role:"user", content:text });
     addBubble("user", text);
     inputEl.value = "";
-    save();
+    saveMessages();
 
     sendBtn.disabled = true;
     sendBtn.textContent = "送信中";
 
     try {
+      const payload = {
+        session_id: sessionId,
+        patient: { name: profile.name, dob: profile.dob },
+        user_agent: navigator.userAgent,
+        page_url: location.href,
+        messages: messages
+      };
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({ messages })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -117,20 +232,35 @@
 
       messages.push({ role:"assistant", content:reply });
       addBubble("assistant", reply);
-      save();
+      saveMessages();
     } catch (e) {
-      addBubble("assistant", "通信エラーが発生しました。電波状況をご確認のうえ、もう一度お試しください。\n（" + e.message + "）");
+      addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
     } finally {
       sendBtn.disabled = false;
       sendBtn.textContent = "送信";
     }
   }
 
+  // UI events
   sendBtn.addEventListener("click", send);
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
 
+  editProfileBtn.addEventListener("click", () => {
+    const p = ensureProfile(true);
+    if (p) addBubble("assistant", "入力情報を更新しました。");
+  });
+
+  resetProfileBtn.addEventListener("click", () => {
+    const ok = confirm("入力情報（氏名・生年月日）とセッションIDを削除します。よろしいですか？");
+    if (!ok) return;
+    clearProfile();
+    addBubble("assistant", "入力情報をリセットしました。必要に応じて再入力してください。");
+  });
+
+  // init
+  refreshStatus();
   render();
 </script>
 </body>
