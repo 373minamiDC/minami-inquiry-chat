@@ -6,16 +6,11 @@
   <title>みなみ歯科医院｜お問い合わせAI</title>
   <style>
     :root{
-      --bg:#0b1220;
-      --card:#0f1a2e;
-      --ink:#e7eefc;
-      --muted:#a8b4d1;
-      --line:#1e2b49;
-      --btn:#1f4fd6;
-      --btn2:#2a3554;
-      --danger:#b33a3a;
+      --bg:#0b1220; --card:#0f1a2e; --ink:#e7eefc; --muted:#a8b4d1;
+      --line:#1e2b49; --btn:#1f4fd6; --btn2:#2a3554; --danger:#b33a3a;
     }
-    body{margin:0;background:linear-gradient(180deg,#070b14, #0b1220);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;}
+    body{margin:0;background:linear-gradient(180deg,#070b14, #0b1220);color:var(--ink);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;}
     .wrap{max-width:980px;margin:0 auto;padding:20px;}
     .panel{background:rgba(15,26,46,.92);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);overflow:hidden;}
     .head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -26,21 +21,45 @@
     .chat{height:520px;overflow:auto;padding:14px 16px;background:rgba(8,14,26,.4);}
     .row{display:flex;margin:10px 0;gap:10px;}
     .row.user{justify-content:flex-end;}
-    .bubble{max-width:78%;padding:10px 12px;border-radius:14px;border:1px solid var(--line);white-space:pre-wrap;word-break:break-word;line-height:1.55;}
+    .bubble{max-width:78%;padding:10px 12px;border-radius:14px;border:1px solid var(--line);
+      white-space:pre-wrap;word-break:break-word;line-height:1.55;}
     .assistant .bubble{background:rgba(15,26,46,.9);}
     .user .bubble{background:rgba(31,79,214,.22);border-color:rgba(31,79,214,.5);}
     a{color:#8fb3ff}
+
     .chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-top:1px solid var(--line);background:rgba(15,26,46,.92);}
     .chip{border:1px solid var(--line);background:rgba(42,53,84,.55);color:var(--ink);padding:7px 10px;border-radius:999px;font-size:12px;cursor:pointer;}
     .chip:hover{filter:brightness(1.1);}
+
     .input{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line);align-items:center;background:rgba(15,26,46,.92);}
-    textarea{flex:1;resize:none;height:44px;max-height:120px;border-radius:12px;border:1px solid var(--line);background:rgba(8,14,26,.6);color:var(--ink);padding:10px 12px;outline:none;}
+    textarea{flex:1;resize:none;height:44px;max-height:120px;border-radius:12px;border:1px solid var(--line);
+      background:rgba(8,14,26,.6);color:var(--ink);padding:10px 12px;outline:none;}
+
     .btn{border:0;border-radius:12px;padding:10px 14px;color:white;cursor:pointer;font-weight:700;}
     .btn.primary{background:var(--btn);}
     .btn.ghost{background:var(--btn2);border:1px solid var(--line);color:var(--ink);}
     .btn.danger{background:rgba(179,58,58,.16);border:1px solid rgba(179,58,58,.5);color:#ffd3d3;}
-    .foot{padding:8px 16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;background:rgba(15,26,46,.92);}
+
+    .foot{padding:8px 16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);
+      display:flex;justify-content:space-between;gap:10px;background:rgba(15,26,46,.92);}
     .rightBtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+    /* Chat内インラインボタン */
+    .inlineActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    .inlineBtn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 12px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(42,53,84,.55);
+      color:var(--ink);font-weight:700;cursor:pointer;
+    }
+    .inlineBtn:hover{filter:brightness(1.08);}
+    .inlineBtn.danger{
+      border-color:rgba(179,58,58,.55);
+      background:rgba(179,58,58,.14);
+      color:#ffd3d3;
+    }
+
     /* modal */
     .modalBg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:18px;}
     .modal{width:min(560px,100%);background:rgba(15,26,46,.98);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 50px rgba(0,0,0,.6);padding:16px;}
@@ -87,9 +106,8 @@
       </div>
 
       <div class="foot">
-        <div>共用端末の場合は「会話を終了（履歴を消す）」を押してください（氏名・生年月日は残ります）。</div>
+        <div>共用端末の場合は結論後に「会話を終了（履歴を消す）」を押してください（氏名・生年月日は残ります）。</div>
         <div class="rightBtns">
-          <button class="btn ghost" id="endBtn" style="display:none;">会話を終了（履歴を消す）</button>
           <button class="btn danger" id="resetPatientBtn">入力情報リセット</button>
         </div>
       </div>
@@ -145,7 +163,6 @@
   const elStatus = document.getElementById("statusText");
   const elPatientMeta = document.getElementById("patientMeta");
   const elSessionMeta = document.getElementById("sessionMeta");
-  const elEndBtn = document.getElementById("endBtn");
   const elResetPatientBtn = document.getElementById("resetPatientBtn");
 
   // modal
@@ -155,6 +172,8 @@
   const dobInput = document.getElementById("dobInput");
   const saveModalBtn = document.getElementById("saveModalBtn");
   const cancelModalBtn = document.getElementById("cancelModalBtn");
+
+  const END_PROMPT = "この件は以上です。最後に「会話を終了（履歴を消す）」を押してください。";
 
   function newSessionId() {
     if (crypto?.randomUUID) return crypto.randomUUID();
@@ -201,10 +220,7 @@
   function linkify(text) {
     const esc = escapeHtml(text);
     const urlRe = /(https?:\/\/[^\s]+)/g;
-    return esc.replace(urlRe, (m) => {
-      const u = m;
-      return `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`;
-    });
+    return esc.replace(urlRe, (m) => `<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`);
   }
 
   function addBubble(role, text) {
@@ -220,13 +236,45 @@
     elChat.scrollTop = elChat.scrollHeight;
   }
 
+  // ★チャット内にインラインアクションを挿入
+  function addInlineEndActions() {
+    // すでに出てたら重複しない
+    if (document.getElementById("inlineEndActions")) return;
+
+    const row = document.createElement("div");
+    row.className = "row assistant";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    const title = document.createElement("div");
+    title.style.color = "var(--muted)";
+    title.style.fontSize = "12px";
+    title.textContent = "操作";
+
+    const actions = document.createElement("div");
+    actions.className = "inlineActions";
+    actions.id = "inlineEndActions";
+
+    const endBtn = document.createElement("button");
+    endBtn.className = "inlineBtn danger";
+    endBtn.type = "button";
+    endBtn.textContent = "会話を終了（履歴を消す）";
+    endBtn.addEventListener("click", () => {
+      endConversationKeepPatient();
+    });
+
+    actions.appendChild(endBtn);
+    bubble.appendChild(title);
+    bubble.appendChild(actions);
+    row.appendChild(bubble);
+    elChat.appendChild(row);
+    elChat.scrollTop = elChat.scrollHeight;
+  }
+
   function renderAll() {
     elChat.innerHTML = "";
     for (const m of messages) addBubble(m.role, m.content);
-  }
-
-  function showEndButton(show) {
-    elEndBtn.style.display = show ? "inline-flex" : "none";
   }
 
   function addAssistantIntro() {
@@ -249,7 +297,6 @@
 
     renderAll();
     setMeta();
-    showEndButton(false);
     addAssistantIntro();
   }
 
@@ -264,6 +311,14 @@
     elStatus.textContent = "接続確認できません（送信は試せます）";
   }
 
+  function appendEndPromptIfNeeded(reply) {
+    const r = String(reply || "").trim();
+    if (!r) return r;
+    // 既に含まれていたら追記しない
+    if (r.includes("会話を終了") || r.includes("履歴を消す")) return r;
+    return r + "\n\n" + END_PROMPT;
+  }
+
   async function sendMessage(text) {
     const t = String(text || "").trim();
     if (!t) return;
@@ -272,6 +327,10 @@
       openModal();
       return;
     }
+
+    // インライン操作ボックスが出ていたら、会話継続で邪魔なので消す
+    const old = document.getElementById("inlineEndActions");
+    if (old) old.closest(".row")?.remove();
 
     messages.push({ role: "user", content: t, ts: Date.now() });
     saveMessages();
@@ -308,16 +367,23 @@
         return;
       }
 
-      const reply = String(data.reply || "すみません、うまく回答できませんでした。");
+      let reply = String(data.reply || "すみません、うまく回答できませんでした。");
+      const isFinal = !!data.suggest_end;
+
+      // ★結論なら「会話を終了…」を本文に自動追記
+      if (isFinal) reply = appendEndPromptIfNeeded(reply);
+
       messages.push({ role: "assistant", content: reply, ts: Date.now() });
       saveMessages();
 
       faqFlow = data.faq_flow || null;
       saveFlow();
 
-      showEndButton(!!data.suggest_end);
-
       renderAll();
+
+      // ★結論なら、チャットの続きに終了ボタンを出す
+      if (isFinal) addInlineEndActions();
+
       elStatus.textContent = "オンライン";
     } catch (e) {
       messages.push({ role: "assistant", content: "通信に失敗しました。時間をおいてお試しください。", ts: Date.now() });
@@ -346,11 +412,6 @@
     }
   });
 
-  // end button (keep patient)
-  elEndBtn.addEventListener("click", () => {
-    endConversationKeepPatient();
-  });
-
   // reset patient (完全リセット)
   elResetPatientBtn.addEventListener("click", () => {
     if (!confirm("入力情報（氏名・生年月日）も含めてリセットしますか？")) return;
@@ -368,7 +429,6 @@
 
     setMeta();
     renderAll();
-    showEndButton(false);
     openModal();
   });
 
