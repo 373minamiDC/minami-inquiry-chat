@@ -34,7 +34,6 @@
     .input{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line);align-items:center;background:rgba(15,26,46,.92);}
     textarea{flex:1;resize:none;height:44px;max-height:120px;border-radius:12px;border:1px solid var(--line);
       background:rgba(8,14,26,.6);color:var(--ink);padding:10px 12px;outline:none;}
-
     .btn{border:0;border-radius:12px;padding:10px 14px;color:white;cursor:pointer;font-weight:700;}
     .btn.primary{background:var(--btn);}
     .btn.ghost{background:var(--btn2);border:1px solid var(--line);color:var(--ink);}
@@ -44,8 +43,9 @@
       display:flex;justify-content:space-between;gap:10px;background:rgba(15,26,46,.92);}
     .rightBtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 
-    /* Chat内インラインボタン */
-    .inlineActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    /* チャット内アクションカード */
+    .actionCardTitle{color:var(--muted);font-size:12px;margin-bottom:8px;}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;}
     .inlineBtn{
       display:inline-flex;align-items:center;gap:8px;
       padding:10px 12px;border-radius:12px;
@@ -68,6 +68,10 @@
     .modal label{display:block;margin-top:10px;color:var(--muted);font-size:12px;}
     .modal input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(8,14,26,.6);color:var(--ink);outline:none;margin-top:6px;}
     .modalBtns{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;}
+    .agreeRow{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,14,26,.4);}
+    .agreeRow input{width:18px;height:18px;margin:0;}
+    .agreeRow .txt{color:var(--muted);font-size:13px;line-height:1.4;}
+    .helpRow{margin-top:6px;color:var(--muted);font-size:12px;}
   </style>
 </head>
 <body>
@@ -123,14 +127,17 @@
         会話内容は院内で確認のため記録されます。
       </p>
 
-      <label>同意（「同意します」と入力）</label>
-      <input id="consentInput" placeholder="同意します" />
+      <div class="agreeRow">
+        <input id="agreeChk" type="checkbox" />
+        <div class="txt">上記を確認し、同意します</div>
+      </div>
 
       <label>お名前</label>
-      <input id="nameInput" placeholder="例：山田 太郎" />
+      <input id="nameInput" placeholder="例：山田 太郎" autocomplete="name" />
 
-      <label>生年月日（YYYY-MM-DD）</label>
-      <input id="dobInput" placeholder="例：1993-06-30" />
+      <label>生年月日</label>
+      <input id="dobInput" type="date" />
+      <div class="helpRow">※PCで日付選択が出ない場合は、YYYY-MM-DD 形式で入力してください</div>
 
       <div class="modalBtns">
         <button class="btn ghost" id="cancelModalBtn">閉じる</button>
@@ -167,7 +174,7 @@
 
   // modal
   const modalBg = document.getElementById("modalBg");
-  const consentInput = document.getElementById("consentInput");
+  const agreeChk = document.getElementById("agreeChk");
   const nameInput = document.getElementById("nameInput");
   const dobInput = document.getElementById("dobInput");
   const saveModalBtn = document.getElementById("saveModalBtn");
@@ -236,36 +243,45 @@
     elChat.scrollTop = elChat.scrollHeight;
   }
 
-  // ★チャット内にインラインアクションを挿入
-  function addInlineEndActions() {
-    // すでに出てたら重複しない
-    if (document.getElementById("inlineEndActions")) return;
+  function removeEndCardIfExists() {
+    const card = document.getElementById("endCardRow");
+    if (card) card.remove();
+  }
+
+  // ★チャット内「終了カード」を最後に出す（＝会話内に最後に出る）
+  function addEndCard() {
+    removeEndCardIfExists();
 
     const row = document.createElement("div");
     row.className = "row assistant";
+    row.id = "endCardRow";
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    const title = document.createElement("div");
-    title.style.color = "var(--muted)";
-    title.style.fontSize = "12px";
-    title.textContent = "操作";
+    const t = document.createElement("div");
+    t.className = "actionCardTitle";
+    t.textContent = "会話を終了しますか？（履歴だけ消えます）";
 
     const actions = document.createElement("div");
-    actions.className = "inlineActions";
-    actions.id = "inlineEndActions";
+    actions.className = "actions";
 
     const endBtn = document.createElement("button");
     endBtn.className = "inlineBtn danger";
     endBtn.type = "button";
     endBtn.textContent = "会話を終了（履歴を消す）";
-    endBtn.addEventListener("click", () => {
-      endConversationKeepPatient();
-    });
+    endBtn.addEventListener("click", () => endConversationKeepPatient());
+
+    const keepBtn = document.createElement("button");
+    keepBtn.className = "inlineBtn";
+    keepBtn.type = "button";
+    keepBtn.textContent = "続けて質問する";
+    keepBtn.addEventListener("click", () => removeEndCardIfExists());
 
     actions.appendChild(endBtn);
-    bubble.appendChild(title);
+    actions.appendChild(keepBtn);
+
+    bubble.appendChild(t);
     bubble.appendChild(actions);
     row.appendChild(bubble);
     elChat.appendChild(row);
@@ -303,10 +319,7 @@
   async function ping() {
     try {
       const res = await fetch(API_PING, { method: "GET" });
-      if (res.ok) {
-        elStatus.textContent = "オンライン";
-        return;
-      }
+      if (res.ok) { elStatus.textContent = "オンライン"; return; }
     } catch {}
     elStatus.textContent = "接続確認できません（送信は試せます）";
   }
@@ -314,7 +327,6 @@
   function appendEndPromptIfNeeded(reply) {
     const r = String(reply || "").trim();
     if (!r) return r;
-    // 既に含まれていたら追記しない
     if (r.includes("会話を終了") || r.includes("履歴を消す")) return r;
     return r + "\n\n" + END_PROMPT;
   }
@@ -328,9 +340,8 @@
       return;
     }
 
-    // インライン操作ボックスが出ていたら、会話継続で邪魔なので消す
-    const old = document.getElementById("inlineEndActions");
-    if (old) old.closest(".row")?.remove();
+    // 会話続行したら、最後の終了カードは邪魔なので消す
+    removeEndCardIfExists();
 
     messages.push({ role: "user", content: t, ts: Date.now() });
     saveMessages();
@@ -370,7 +381,6 @@
       let reply = String(data.reply || "すみません、うまく回答できませんでした。");
       const isFinal = !!data.suggest_end;
 
-      // ★結論なら「会話を終了…」を本文に自動追記
       if (isFinal) reply = appendEndPromptIfNeeded(reply);
 
       messages.push({ role: "assistant", content: reply, ts: Date.now() });
@@ -381,8 +391,8 @@
 
       renderAll();
 
-      // ★結論なら、チャットの続きに終了ボタンを出す
-      if (isFinal) addInlineEndActions();
+      // ★結論なら “チャット内の最後” に終了カードを出す
+      if (isFinal) addEndCard();
 
       elStatus.textContent = "オンライン";
     } catch (e) {
@@ -397,10 +407,7 @@
 
   // chips
   document.querySelectorAll(".chip").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const txt = btn.getAttribute("data-text") || "";
-      sendMessage(txt);
-    });
+    btn.addEventListener("click", () => sendMessage(btn.getAttribute("data-text") || ""));
   });
 
   // send
@@ -434,18 +441,15 @@
 
   // modal actions
   saveModalBtn.addEventListener("click", () => {
-    const consent = (consentInput.value || "").trim();
+    const agree = !!agreeChk.checked;
     const name = (nameInput.value || "").trim();
-    const dob = (dobInput.value || "").trim();
+    let dob = (dobInput.value || "").trim();
 
-    if (consent !== "同意します") {
-      alert("同意欄に「同意します」と入力してください。");
-      return;
-    }
-    if (!name) {
-      alert("お名前を入力してください。");
-      return;
-    }
+    // type="date" が無効な環境用：YYYY-MM-DD 形式チェック
+    if (!agree) { alert("同意にチェックを入れてください。"); return; }
+    if (!name) { alert("お名前を入力してください。"); return; }
+
+    // date input はブラウザにより "YYYY-MM-DD" で返る想定
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
       alert("生年月日は YYYY-MM-DD 形式で入力してください。");
       return;
