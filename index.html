@@ -3,570 +3,270 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>みなみ歯科医院｜お問い合わせAI</title>
+  <title>みなみ歯科医院｜お問い合わせ</title>
   <style>
-    :root{
-      --bg:#0b1220; --panel:#0f1b33; --card:#122446; --card2:#0e1a34;
-      --text:#e8eefc; --muted:#b8c3dd; --brand:#4ea1ff; --brand2:#2f7be6;
-      --danger:#ff4d4d; --line:#243a63;
-      --radius:16px;
+    :root { --bg:#0b1220; --card:#111a2e; --text:#e9eefc; --muted:#a8b3d6; --line:#243152; --btn:#3b82f6; --danger:#ef4444; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; background:linear-gradient(180deg,#070b14,#0b1220); color:var(--text); }
+    .wrap { max-width:900px; margin:0 auto; padding:18px; }
+    .header { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; }
+    .badges { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .badge { font-size:12px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+    .actions { display:flex; gap:8px; }
+    .ghostbtn {
+      font-size:12px; padding:8px 10px; border:1px solid var(--line); border-radius:12px;
+      background:transparent; color:var(--text); cursor:pointer;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#071022, #0b1220 40%, #071022);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif}
-    a{color:var(--brand);text-decoration:none}
-    a:hover{text-decoration:underline}
-    .wrap{max-width:980px;margin:0 auto;padding:22px 14px 30px}
-    .shell{background:rgba(10,18,36,.55);border:1px solid rgba(78,161,255,.12);border-radius:24px;box-shadow:0 16px 48px rgba(0,0,0,.35);overflow:hidden}
-    .top{padding:18px 18px 10px;border-bottom:1px solid rgba(78,161,255,.10);display:flex;gap:12px;align-items:center}
-    .title{font-weight:800;font-size:16px}
-    .badge{font-size:12px;color:var(--muted);background:rgba(78,161,255,.10);border:1px solid rgba(78,161,255,.16);padding:6px 10px;border-radius:999px}
-    .notice{padding:12px 18px;background:rgba(255,255,255,.02);border-bottom:1px solid rgba(78,161,255,.10);color:var(--muted)}
-    .notice b{color:var(--text)}
-    .meta{padding:10px 18px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12px}
-    .meta code{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;color:var(--text)}
-    .chat{height:min(62vh,720px);overflow:auto;padding:14px 18px 8px}
-    .row{display:flex;margin:10px 0}
-    .row.assistant{justify-content:flex-start}
-    .row.user{justify-content:flex-end}
-    .bubble{
-      max-width:min(680px, 88%);
-      padding:12px 14px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.08);
-      white-space:pre-wrap;
-      word-break:break-word;
-    }
-    .assistant .bubble{background:rgba(18,36,70,.55)}
-    .user .bubble{background:rgba(78,161,255,.18);border-color:rgba(78,161,255,.25)}
-    .bubble .small{font-size:12px;color:var(--muted)}
-    .divider{height:1px;background:rgba(78,161,255,.10);margin:10px 0}
-    .chips{padding:10px 18px 0;display:flex;flex-wrap:wrap;gap:8px}
-    .chip{
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      color:var(--text);
-      border-radius:999px;
-      padding:7px 12px;
-      cursor:pointer;
-      user-select:none;
-    }
-    .chip:hover{border-color:rgba(78,161,255,.30);background:rgba(78,161,255,.10)}
-    .quickWrap{padding:10px 18px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .quickTitle{color:var(--muted);font-size:12px;margin-right:6px}
-    .quickBtn{
-      border-radius:12px;
-      padding:9px 12px;
-      border:1px solid rgba(78,161,255,.25);
-      background:rgba(78,161,255,.12);
-      color:var(--text);
-      cursor:pointer;
-      min-width:46px;
-      text-align:center;
-      font-weight:700;
-    }
-    .quickBtn:hover{background:rgba(78,161,255,.18)}
-    .quickBtn.ghost{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-weight:600}
-    .composer{padding:12px 18px 18px;border-top:1px solid rgba(78,161,255,.10)}
-    .inputRow{display:flex;gap:10px;align-items:stretch}
-    textarea{
-      width:100%;resize:none;min-height:52px;max-height:180px;
-      border-radius:16px;border:1px solid rgba(255,255,255,.10);
-      background:rgba(0,0,0,.20);color:var(--text);
-      padding:12px 12px;outline:none;
-    }
-    textarea:focus{border-color:rgba(78,161,255,.30)}
-    .send{
-      width:90px;border-radius:16px;border:1px solid rgba(78,161,255,.25);
-      background:linear-gradient(180deg, rgba(78,161,255,.22), rgba(78,161,255,.12));
-      color:var(--text);font-weight:800;cursor:pointer;
-    }
-    .send:disabled{opacity:.5;cursor:not-allowed}
-    .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;color:var(--muted);font-size:12px}
-    .dangerBtn{
-      background:rgba(255,77,77,.10);
-      border:1px solid rgba(255,77,77,.25);
-      color:var(--text);
-      padding:10px 14px;border-radius:14px;
-      cursor:pointer;font-weight:800;
-    }
-    .dangerBtn:hover{background:rgba(255,77,77,.14)}
-    .linkBtn{
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      color:var(--text);
-      padding:10px 14px;border-radius:14px;
-      cursor:pointer;font-weight:700;
-    }
-    .linkBtn:hover{border-color:rgba(78,161,255,.25)}
-    /* modal */
-    .modalBg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px}
-    .modal{width:min(520px, 100%);background:rgba(15,27,51,.98);border:1px solid rgba(78,161,255,.18);border-radius:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:18px}
-    .modal h2{margin:0 0 8px;font-size:16px}
-    .modal p{margin:8px 0;color:var(--muted)}
-    .formRow{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-    .field{flex:1;min-width:220px}
-    label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
-    input[type="text"], input[type="date"]{
-      width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.20);color:var(--text);
-      padding:11px 12px;outline:none;
-    }
-    input[type="text"]:focus, input[type="date"]:focus{border-color:rgba(78,161,255,.30)}
-    .agreeRow{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
-    .agreeRow input{margin-top:4px;transform:scale(1.1)}
-    .modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
-    .primary{
-      border-radius:14px;padding:10px 14px;border:1px solid rgba(78,161,255,.25);
-      background:rgba(78,161,255,.14);color:var(--text);
-      cursor:pointer;font-weight:800;
-    }
-    .primary:hover{background:rgba(78,161,255,.18)}
-    .mutedBtn{
-      border-radius:14px;padding:10px 14px;border:1px solid rgba(255,255,255,.10);
-      background:rgba(255,255,255,.06);color:var(--text);
-      cursor:pointer;font-weight:700;
-    }
-    .mutedBtn:hover{border-color:rgba(78,161,255,.22)}
+    .ghostbtn:hover { background:rgba(255,255,255,.06); }
+    .danger { border-color: rgba(239,68,68,.5); color: #fecaca; }
+    .card { background:rgba(17,26,46,.88); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(0,0,0,.25); }
+    .notice { padding:12px 14px; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; line-height:1.6; }
+    .notice b { color:var(--text); }
+    .profileLine { padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .chat { height:62vh; min-height:420px; overflow:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+    .msg { max-width:85%; padding:10px 12px; border-radius:14px; border:1px solid var(--line); white-space:pre-wrap; line-height:1.55; }
+    .me { align-self:flex-end; background:rgba(59,130,246,.18); }
+    .ai { align-self:flex-start; background:rgba(255,255,255,.06); }
+    .bar { display:flex; gap:10px; padding:12px; border-top:1px solid var(--line); background:rgba(10,15,28,.8); }
+    textarea { flex:1; resize:none; border-radius:12px; border:1px solid var(--line); background:#0a1020; color:var(--text); padding:10px 10px; min-height:44px; max-height:160px; outline:none; }
+    button.send { width:120px; border:0; border-radius:12px; background:var(--btn); color:white; font-weight:700; cursor:pointer; }
+    button.send:disabled { opacity:.55; cursor:not-allowed; }
+    .small { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+    a { color:#93c5fd; }
+    .divider { height:1px; background:var(--line); margin:10px 0; opacity:.8; }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="shell">
-    <div class="top">
-      <div class="title">お問い合わせAI</div>
-      <div class="badge">必要に応じて受診をご案内します</div>
+  <div class="wrap">
+    <div class="header">
+      <div class="badges">
+        <div class="badge">お問い合わせAI（β）</div>
+        <div class="badge">必要に応じて受診をご案内します</div>
+      </div>
+      <div class="actions">
+        <button id="editProfile" class="ghostbtn">入力情報を変更</button>
+        <button id="resetProfile" class="ghostbtn danger">入力情報リセット</button>
+      </div>
     </div>
 
-    <div class="notice">
-      ※このチャットは<b>診断の確定は行いません</b>。<br/>
-      強い痛み／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、当院までお電話ください（診療時間内のみ対応）：<b><a href="tel:0798478111">0798-47-8111</a></b><br/>
-      ※会話内容は院内対応確認のため記録されます（同意の上ご利用ください）。
-    </div>
+    <div class="card">
+      <div class="notice">
+        <b>ご注意</b>：このチャットは診断の確定は行いません。<br>
+        強い腫れ／出血が止まらない／息苦しさ／外傷など緊急性がある場合は、救急や医療機関へご連絡ください。<br>
+        <span style="opacity:.9;">※院内で対応内容を確認するため、会話内容は記録されます（同意のうえご利用ください）。</span>
+      </div>
 
-    <div class="meta">
-      <span>ログ識別： <code id="metaName">-</code> / <code id="metaDob">-</code></span>
-      <span style="margin-left:auto">セッション： <code id="metaSession">-</code></span>
-    </div>
+      <div id="profileLine" class="profileLine">
+        <div>ログ識別：<span id="profileStatus">未入力</span></div>
+        <div>セッション：<span id="sessionStatus">未作成</span></div>
+      </div>
 
-    <div id="chat" class="chat"></div>
+      <div id="chat" class="chat"></div>
 
-    <div class="chips">
-      <div class="chip" data-text="痛い">痛い</div>
-      <div class="chip" data-text="詰め物が取れた">詰め物が取れた</div>
-      <div class="chip" data-text="しみる">しみる</div>
-      <div class="chip" data-text="腫れた">腫れた</div>
-      <div class="chip" data-text="予約の確認">予約の確認</div>
-    </div>
-
-    <div id="quickWrap" class="quickWrap" style="display:none"></div>
-
-    <div class="composer">
-      <div class="inputRow">
-        <textarea id="input" placeholder="例：今日 右上の奥歯の詰め物が取れた など"></textarea>
+      <div class="bar">
+        <textarea id="input" placeholder="例：歯がしみる／詰め物が取れた／腫れてきた など"></textarea>
         <button id="send" class="send">送信</button>
       </div>
-      <div class="foot">
-        <div>共有端末の場合は最後に「会話を終了（履歴を消す）」を押してください（氏名・生年月日は残ります）。</div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <button id="endBtn" class="linkBtn" title="会話履歴のみ削除（氏名・生年月日は残す）">会話を終了（履歴を消す）</button>
-          <button id="resetAllBtn" class="dangerBtn" title="氏名・生年月日も含めてリセット">入力情報リセット</button>
-        </div>
-      </div>
     </div>
-  </div>
-</div>
 
-<!-- Consent / Patient modal -->
-<div id="modalBg" class="modalBg">
-  <div class="modal">
-    <h2>ご利用前の確認</h2>
-    <p>チャットの内容は院内対応の参考のため記録されます。診断の確定は行いません。</p>
-    <div class="formRow">
-      <div class="field">
-        <label>氏名</label>
-        <input id="nameInput" type="text" placeholder="例：南 太郎" autocomplete="name"/>
-      </div>
-      <div class="field">
-        <label>生年月日</label>
-        <input id="dobInput" type="date" />
-      </div>
-    </div>
-    <div class="agreeRow">
-      <input id="agreeChk" type="checkbox" />
-      <div>
-        <div style="font-weight:800">同意します</div>
-        <div style="color:var(--muted);font-size:12px">会話ログの記録に同意のうえ利用します。</div>
-      </div>
-    </div>
-    <div class="modalActions">
-      <button id="modalCancel" class="mutedBtn">閉じる</button>
-      <button id="modalOk" class="primary">開始する</button>
+    <div class="small">
+      ・会話履歴はこの端末内（ブラウザ）に保存されます。共有端末の場合は「入力情報リセット」を押してください。<br>
+      ・予約や個別対応が必要な場合は、電話や来院をご案内します。
     </div>
   </div>
-</div>
 
 <script>
-  // ===== 設定 =====
+  // ★ここだけ確認：あなたのWorkerのURL
   const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
 
-  // ===== localStorage keys =====
-  const K_PATIENT = "minami_patient";
-  const K_SESSION  = "minami_session_id";
-  const K_MESSAGES = "minami_messages";
-  const K_FLOW     = "minami_faq_flow";
-
-  // ===== state =====
-  let patient = loadJSON(K_PATIENT, null);
-  let sessionId = localStorage.getItem(K_SESSION) || newSessionId();
-  let messages = loadJSON(K_MESSAGES, []);
-  let faqFlow = loadJSON(K_FLOW, null);
-
-  // ===== DOM =====
   const chatEl = document.getElementById("chat");
   const inputEl = document.getElementById("input");
   const sendBtn = document.getElementById("send");
-  const quickWrap = document.getElementById("quickWrap");
+  const profileStatusEl = document.getElementById("profileStatus");
+  const sessionStatusEl = document.getElementById("sessionStatus");
+  const editProfileBtn = document.getElementById("editProfile");
+  const resetProfileBtn = document.getElementById("resetProfile");
 
-  const metaName = document.getElementById("metaName");
-  const metaDob = document.getElementById("metaDob");
-  const metaSession = document.getElementById("metaSession");
+  const STORAGE_KEY = "minami_inquiry_chat_v1";
+  const PROFILE_KEY = "minami_patient_profile_v1";
+  const SESSION_KEY = "minami_inquiry_session_v1";
 
-  const modalBg = document.getElementById("modalBg");
-  const nameInput = document.getElementById("nameInput");
-  const dobInput = document.getElementById("dobInput");
-  const agreeChk = document.getElementById("agreeChk");
-  const modalOk = document.getElementById("modalOk");
-  const modalCancel = document.getElementById("modalCancel");
+  let messages = loadMessages();
+  let faqFlow = null; // FAQ ステップフローの状態（Workers とやり取り）
 
-  const endBtn = document.getElementById("endBtn");
-  const resetAllBtn = document.getElementById("resetAllBtn");
-
-  // ===== init =====
-  updateMeta();
-  renderAll();
-
-  if (!patient || !patient.name || !patient.dob) {
-    openModal();
-  } else {
-    greetIfEmpty();
+  function loadMessages() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveMessages() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30)));
   }
 
-  // ===== UI events =====
-  document.querySelectorAll(".chip").forEach(ch => {
-    ch.addEventListener("click", () => {
-      inputEl.value = ch.dataset.text || "";
-      inputEl.focus();
-    });
-  });
-
-  sendBtn.addEventListener("click", () => sendMessage());
-  inputEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  endBtn.addEventListener("click", () => endConversation());
-
-  resetAllBtn.addEventListener("click", () => {
-    if (!confirm("氏名・生年月日も含めてリセットします。よろしいですか？")) return;
-    localStorage.removeItem(K_PATIENT);
-    endConversation(true); // also clears session and everything
-    openModal();
-  });
-
-  modalCancel.addEventListener("click", () => closeModal());
-  modalOk.addEventListener("click", () => {
-    const name = (nameInput.value || "").trim();
-    const dob = (dobInput.value || "").trim();
-    if (!agreeChk.checked) { alert("「同意します」にチェックを入れてください。"); return; }
-    if (!name) { alert("氏名を入力してください。"); return; }
-    if (!dob) { alert("生年月日を入力してください。"); return; }
-
-    patient = { name, dob };
-    saveJSON(K_PATIENT, patient);
-    updateMeta();
-    closeModal();
-    greetIfEmpty();
-  });
-
-  // ===== functions =====
-  function openModal(){
-    modalBg.style.display = "flex";
-    nameInput.value = patient?.name || "";
-    dobInput.value = patient?.dob || "";
-    agreeChk.checked = false;
-  }
-  function closeModal(){ modalBg.style.display = "none"; }
-
-  function greetIfEmpty(){
-    if (!Array.isArray(messages) || messages.length === 0) {
-      addAssistant(`ご用件を入力してください。\n例）歯が痛い／詰め物が取れた／しみる／腫れた など`);
-      persist();
-    }
+  function getOrCreateSessionId() {
+    let id = localStorage.getItem(SESSION_KEY);
+    if (id) return id;
+    id = (crypto?.randomUUID?.() || ("s_" + Date.now() + "_" + Math.random().toString(16).slice(2)));
+    localStorage.setItem(SESSION_KEY, id);
+    return id;
   }
 
-  function updateMeta(){
-    metaName.textContent = patient?.name || "-";
-    metaDob.textContent = patient?.dob || "-";
-    metaSession.textContent = sessionId || "-";
+  function getProfile() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null; } catch { return null; }
+  }
+  function setProfile(p) {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    refreshStatus();
+  }
+  function clearProfile() {
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(SESSION_KEY);
+    refreshStatus();
   }
 
-  function newSessionId(){
-    const s = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(16).slice(2));
-    localStorage.setItem(K_SESSION, s);
-    return s;
+  function validateDob(dob) {
+    // ざっくり YYYY-MM-DD（厳密でなくOK）
+    return /^\d{4}-\d{2}-\d{2}$/.test(dob);
   }
 
-  function endConversation(forceNewSession=false){
-    // 履歴だけ消して、氏名・生年月日は残す運用
-    messages = [];
-    faqFlow = null;
-    localStorage.removeItem(K_MESSAGES);
-    localStorage.removeItem(K_FLOW);
-
-    if (forceNewSession || true) {
-      sessionId = newSessionId();
+  function ensureProfile(forceReinput=false) {
+    if (!forceReinput) {
+      const existing = getProfile();
+      if (existing && existing.name && existing.dob && existing.consent === true) return existing;
     }
 
+    const consent = confirm("このチャット内容は、院内で内容確認・対応のために保存されます。よろしいですか？");
+    if (!consent) return null;
+
+    const name = prompt("患者氏名（フルネーム）を入力してください");
+    if (!name) return null;
+
+    let dob = prompt("生年月日を入力してください（例：1990-01-31）");
+    if (!dob) return null;
+    dob = dob.trim();
+
+    if (!validateDob(dob)) {
+      const ok = confirm("生年月日の形式が「YYYY-MM-DD」ではない可能性があります。このまま保存しますか？");
+      if (!ok) return null;
+    }
+
+    const p = { name: name.trim(), dob: dob, consent: true, updated_at: new Date().toISOString() };
+    setProfile(p);
+
+    // セッションも確定
+    getOrCreateSessionId();
+    return p;
+  }
+
+  function refreshStatus() {
+    const p = getProfile();
+    const sid = localStorage.getItem(SESSION_KEY);
+
+    profileStatusEl.textContent = p && p.name && p.dob
+      ? `${p.name} / ${p.dob}`
+      : "未入力";
+
+    sessionStatusEl.textContent = sid ? sid : "未作成";
+  }
+
+  function addBubble(role, text) {
+    const div = document.createElement("div");
+    div.className = "msg " + (role === "user" ? "me" : "ai");
+    div.textContent = text;
+    chatEl.appendChild(div);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function render() {
     chatEl.innerHTML = "";
-    quickWrap.style.display = "none";
-    updateMeta();
-    greetIfEmpty();
+    if (messages.length === 0) {
+      addBubble("assistant",
+        "こんにちは。症状や状況を教えてください。\n" +
+        "例：いつから／どの歯（右上など）／痛み・しみ・腫れ／治療中の歯か など\n\n" +
+        "※送信前に、ログ確認のため氏名・生年月日入力（同意）が出ます。"
+      );
+      return;
+    }
+    for (const m of messages) addBubble(m.role, m.content);
   }
 
-  async function sendMessage(textOverride){
-    if (!patient || !patient.name || !patient.dob) { openModal(); return; }
-
-    const text = (textOverride !== undefined ? textOverride : inputEl.value).trim();
+  async function send() {
+    const text = inputEl.value.trim();
     if (!text) return;
 
-    inputEl.value = "";
-    addUser(text);
-    persist();
-    scrollToBottom();
+    // プロフィール未入力ならここで取得
+    const profile = ensureProfile(false);
+    if (!profile) {
+      addBubble("assistant", "同意・氏名・生年月日の入力が確認できないため、送信を中止しました。");
+      return;
+    }
+    const sessionId = getOrCreateSessionId();
 
-    // send
-    setSending(true);
-    try{
+    messages.push({ role:"user", content:text });
+    addBubble("user", text);
+    inputEl.value = "";
+    saveMessages();
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "送信中";
+
+    try {
       const payload = {
-        messages,
         session_id: sessionId,
-        patient,
-        page_url: location.href,
+        patient: { name: profile.name, dob: profile.dob },
         user_agent: navigator.userAgent,
+        page_url: location.href,
+        messages: messages,
         faq_flow: faqFlow
       };
 
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json; charset=utf-8" },
+        headers: { "Content-Type":"application/json" },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("API error: " + res.status);
-      const data = await res.json();
-
-      const reply = (data?.reply || "").toString();
-      faqFlow = data?.faq_flow ?? null;
-      saveJSON(K_FLOW, faqFlow);
-
-      addAssistant(reply, { suggestEnd: !!data?.suggest_end });
-      persist();
-
-      // クイックボタン表示更新
-      updateQuickButtons(reply, !!data?.suggest_end);
-
-      scrollToBottom();
-    }catch(err){
-      addAssistant("通信エラーが発生しました。時間をおいて再度お試しください。");
-      persist();
-    }finally{
-      setSending(false);
-    }
-  }
-
-  function setSending(isSending){
-    sendBtn.disabled = isSending;
-    inputEl.disabled = isSending;
-  }
-
-  function addUser(text){
-    messages.push({ role:"user", content:text });
-    renderMessage({ role:"user", content:text });
-  }
-
-  function addAssistant(text, opts={}){
-    messages.push({ role:"assistant", content:text });
-    renderMessage({ role:"assistant", content:text }, opts);
-  }
-
-  function renderAll(){
-    chatEl.innerHTML = "";
-    (messages || []).forEach(m => renderMessage(m));
-    // 初期 quick
-    const lastA = [...(messages||[])].reverse().find(m => m.role === "assistant")?.content || "";
-    updateQuickButtons(lastA, false);
-    scrollToBottom(true);
-  }
-
-  function renderMessage(m, opts={}){
-    const row = document.createElement("div");
-    row.className = "row " + (m.role === "user" ? "user" : "assistant");
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-
-    bubble.innerHTML = linkify(escapeHtml(m.content || ""));
-
-    // 最終回答っぽい時は、チャット内に「会話を終了」ボタンを出す
-    if (m.role === "assistant" && (opts.suggestEnd || looksLikeFinal(m.content))) {
-      const div = document.createElement("div");
-      div.className = "divider";
-      bubble.appendChild(div);
-
-      const btn = document.createElement("button");
-      btn.className = "linkBtn";
-      btn.textContent = "会話を終了（履歴を消す）";
-      btn.addEventListener("click", () => endConversation());
-      bubble.appendChild(btn);
-
-      const note = document.createElement("div");
-      note.className = "small";
-      note.textContent = "※氏名・生年月日は残ります。共有端末では押してください。";
-      bubble.appendChild(note);
-    }
-
-    row.appendChild(bubble);
-    chatEl.appendChild(row);
-  }
-
-  function updateQuickButtons(lastAssistantText, suggestEndFlag){
-    const txt = String(lastAssistantText || "");
-
-    // まず全消し
-    quickWrap.innerHTML = "";
-    quickWrap.style.display = "none";
-
-    const buttons = [];
-
-    // yes/no
-    if (hasYesNoPrompt(txt)) {
-      buttons.push({ label:"はい", value:"はい" });
-      buttons.push({ label:"いいえ", value:"いいえ" });
-    }
-
-    // choice 1/2/3
-    const choices = detectChoices(txt); // returns [1,2] or [1,2,3]
-    if (choices.length) {
-      choices.forEach(n => buttons.push({ label:String(n), value:String(n) }));
-      // よくある文字回答も出す（迷う人向け）
-      if (choices.length === 2) {
-        buttons.push({ label:"ある", value:"ある", ghost:true });
-        buttons.push({ label:"ない", value:"ない", ghost:true });
+      if (!res.ok) {
+        const errText = await res.text().catch(()=> "");
+        throw new Error("API error: " + res.status + " " + errText);
       }
+
+      const data = await res.json();
+      const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
+
+      // FAQ フロー状態を更新（Workers から返ってくる）
+      faqFlow = data.faq_flow || null;
+
+      messages.push({ role:"assistant", content:reply });
+      addBubble("assistant", reply);
+      saveMessages();
+    } catch (e) {
+      addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
+    } finally {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "送信";
     }
-
-    // end conversation button hint (if server says suggest_end)
-    if (suggestEndFlag) {
-      buttons.push({ label:"会話を終了", value:"__END__", ghost:true });
-    }
-
-    if (!buttons.length) return;
-
-    quickWrap.style.display = "flex";
-    const title = document.createElement("div");
-    title.className = "quickTitle";
-    title.textContent = "クイック返信：";
-    quickWrap.appendChild(title);
-
-    buttons.forEach(b => {
-      const btn = document.createElement("button");
-      btn.className = "quickBtn" + (b.ghost ? " ghost" : "");
-      btn.textContent = b.label;
-      btn.addEventListener("click", () => {
-        if (b.value === "__END__") return endConversation();
-        sendMessage(b.value);
-      });
-      quickWrap.appendChild(btn);
-    });
   }
 
-  function hasYesNoPrompt(t){
-    // 「（はい／いいえ）」や「はい／いいえ」「はい/いいえ」などが含まれる
-    return /はい\s*[\/／]\s*いいえ|（\s*はい\s*[\/／]\s*いいえ\s*）/i.test(t);
-  }
+  // UI events
+  sendBtn.addEventListener("click", send);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+  });
 
-  function detectChoices(t){
-    // 「1：」「2：」「3：」や「1:」などを検知
-    const has1 = /(?:^|\n|\s)1\s*[：:]/.test(t);
-    const has2 = /(?:^|\n|\s)2\s*[：:]/.test(t);
-    const has3 = /(?:^|\n|\s)3\s*[：:]/.test(t);
+  editProfileBtn.addEventListener("click", () => {
+    const p = ensureProfile(true);
+    if (p) addBubble("assistant", "入力情報を更新しました。");
+  });
 
-    if (has1 && has2 && has3) return [1,2,3];
-    if (has1 && has2) return [1,2];
-    return [];
-  }
+  resetProfileBtn.addEventListener("click", () => {
+    const ok = confirm("入力情報（氏名・生年月日）とセッションIDを削除します。よろしいですか？");
+    if (!ok) return;
+    clearProfile();
+    addBubble("assistant", "入力情報をリセットしました。必要に応じて再入力してください。");
+  });
 
-  function looksLikeFinal(t){
-    const s = String(t || "");
-    // 予約導線 or 電話/WEBが出たら final っぽい
-    if (s.includes("WEB予約") || s.includes("https://v3.apodent.jp/")) return true;
-    if (s.includes("0798-47-8111") || s.includes("お電話")) return true;
-    if (s.includes("会話を終了")) return true;
-    return false;
-  }
-
-  function persist(){
-    saveJSON(K_MESSAGES, messages);
-    localStorage.setItem(K_SESSION, sessionId);
-    saveJSON(K_FLOW, faqFlow);
-  }
-
-  function scrollToBottom(instant=false){
-    requestAnimationFrame(() => {
-      chatEl.scrollTo({ top: chatEl.scrollHeight, behavior: instant ? "auto" : "smooth" });
-    });
-  }
-
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  function linkify(s){
-    // URLs
-    s = s.replace(/(https?:\/\/[^\s<]+)|(\bwww\.[^\s<]+)/g, (m) => {
-      const url = m.startsWith("http") ? m : "https://" + m;
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${m}</a>`;
-    });
-
-    // phone number (0798-47-8111 etc.)
-    s = s.replace(/0\d{1,4}-\d{1,4}-\d{3,4}/g, (m) => {
-      const tel = "tel:" + m.replaceAll("-","");
-      return `<a href="${tel}">${m}</a>`;
-    });
-
-    return s;
-  }
-
-  function loadJSON(key, fallback){
-    try{
-      const raw = localStorage.getItem(key);
-      if (!raw) return fallback;
-      return JSON.parse(raw);
-    }catch{ return fallback; }
-  }
-  function saveJSON(key, val){
-    try{
-      localStorage.setItem(key, JSON.stringify(val));
-    }catch{}
-  }
+  // init
+  refreshStatus();
+  render();
 </script>
 </body>
 </html>
