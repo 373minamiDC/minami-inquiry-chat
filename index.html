@@ -167,10 +167,16 @@
     sessionStatusEl.textContent = sid ? sid : "未作成";
   }
 
-  function addBubble(role, text) {
+  function addBubble(role, text, source) {
     const div = document.createElement("div");
     div.className = "msg " + (role === "user" ? "me" : "ai");
     div.textContent = text;
+    if (source && role === "assistant") {
+      const tag = document.createElement("div");
+      tag.style.cssText = "font-size:10px;color:#888;margin-top:4px;";
+      tag.textContent = "[source: " + source + "]";
+      div.appendChild(tag);
+    }
     chatEl.appendChild(div);
     chatEl.scrollTop = chatEl.scrollHeight;
   }
@@ -230,13 +236,14 @@
       }
 
       const data = await res.json();
+      console.log("[DEBUG] API response:", data);
       const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
 
       // FAQ フロー状態を更新（Workers から返ってくる）
       faqFlow = data.faq_flow || null;
 
       messages.push({ role:"assistant", content:reply });
-      addBubble("assistant", reply);
+      addBubble("assistant", reply, data.source);
       saveMessages();
     } catch (e) {
       addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
