@@ -127,8 +127,9 @@ export default {
         // 不正解 → 聞き直し
         if (!judged.ok) {
           const repair = buildRepairPrompt(currentStep.text);
+          const repairOptions = buildReplyOptions(currentStep);
           await saveLogIfPossible(env, { session_id: sessionId, name: patientName, dob: patientDob, user_text: lastUserTextRaw, assistant_text: repair, user_agent: userAgent, page_url: pageUrl });
-          return json({ reply: repair, source: "faq_repair", faq_flow: flow, suggest_end: false }, 200, cors);
+          return json({ reply: repair, source: "faq_repair", faq_flow: flow, suggest_end: false, reply_options: repairOptions }, 200, cors);
         }
 
         // slot 保存
@@ -147,7 +148,7 @@ export default {
         // 次のステップへ
         const advanced = advanceSteps(steps, flow, flow.step + 1);
         await saveLogIfPossible(env, { session_id: sessionId, name: patientName, dob: patientDob, user_text: lastUserTextRaw, assistant_text: advanced.reply, user_agent: userAgent, page_url: pageUrl });
-        return json({ reply: advanced.reply, source: "faq_flow", faq_flow: advanced.newFlow, suggest_end: advanced.suggest_end }, 200, cors);
+        return json({ reply: advanced.reply, source: "faq_flow", faq_flow: advanced.newFlow, suggest_end: advanced.suggest_end, reply_options: advanced.reply_options || null }, 200, cors);
       } else {
         flow = null;
       }
@@ -172,7 +173,7 @@ export default {
 
         const advanced = advanceSteps(steps, newFlow, 1);
         await saveLogIfPossible(env, { session_id: sessionId, name: patientName, dob: patientDob, user_text: lastUserTextRaw, assistant_text: advanced.reply, user_agent: userAgent, page_url: pageUrl });
-        return json({ reply: advanced.reply, source: "faq_flow_start", faq_flow: advanced.newFlow, suggest_end: advanced.suggest_end }, 200, cors);
+        return json({ reply: advanced.reply, source: "faq_flow_start", faq_flow: advanced.newFlow, suggest_end: advanced.suggest_end, reply_options: advanced.reply_options || null }, 200, cors);
       }
 
       // ステップなし → 単発 FAQ 回答
@@ -676,7 +677,7 @@ function advanceSteps(steps, flow, startFrom) {
     const st = steps[idx - 1];
 
     if (st.tag === "final") {
-      return { reply: st.text, newFlow: null, suggest_end: true };
+      return { reply: st.text, newFlow: null, suggest_end: true, reply_options: null };
     }
 
     const slot = st?.meta?.slot || "";
@@ -686,14 +687,40 @@ function advanceSteps(steps, flow, startFrom) {
     }
 
     const newFlow = { key: flow.key, step: idx, slots: flow.slots || {} };
-    return { reply: st.text, newFlow, suggest_end: false };
+    return { reply: st.text, newFlow, suggest_end: false, reply_options: buildReplyOptions(st) };
   }
 
   return {
     reply: "ご連絡ありがとうございます。\n\nWEB予約：https://v3.apodent.jp/app/entry/1717/minami/\nお電話：0798-47-8111（診療時間内のみ対応）\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。",
     newFlow: null,
     suggest_end: true,
+    reply_options: null,
   };
+}
+
+/** FAQ ステップの expect に応じて選択肢を生成 */
+function buildReplyOptions(step) {
+  if (!step || !step.meta) return null;
+  const expect = (step.meta.expect || "").toLowerCase();
+
+  if (expect === "yesno") {
+    return [
+      { label: "はい", value: "はい" },
+      { label: "いいえ", value: "いいえ" },
+    ];
+  }
+
+  if (expect === "choice") {
+    const text = step.text || "";
+    const options = [];
+    for (const line of text.split(/\n/)) {
+      const m = line.match(/^\s*(\d)[）\)]\s*(.+)/);
+      if (m) options.push({ label: m[1] + "）" + m[2].trim(), value: m[1] });
+    }
+    if (options.length >= 2) return options;
+  }
+
+  return null;
 }
 
 /* ======================================================================
@@ -755,6 +782,28 @@ function decideFlowReply(flowKey, slots) {
       }
       return null;
     }
+  }
+
+  /* ---- 入れ歯が痛い ---- */
+  if (key === "入れ歯が痛い") {
+    if (s.eating === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n入れ歯を外すとお食事がしにくい場合は、入れ歯の調整が必要です。\nお電話にてご予約をお取りください。\n\n痛ければ、入れ歯を外しておいてもらって大丈夫です。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.eating === "no") {
+      return { reply: `ご回答ありがとうございます。\n\nお食事に支障がない場合は、WEBにてご予約をお取りください。\n\n痛ければ、入れ歯を外しておいてもらって大丈夫です。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 入れ歯が割れた ---- */
+  if (key === "入れ歯が割れた") {
+    if (s.eat === "yes") {
+      return { reply: `お食事がしにくいとのことですね。\n\n応急処置で対応できる場合がありますので、お電話にてご予約をお願いいたします。\n\nお電話：${TEL}\n\n※割れた入れ歯は【接着剤などで修理せず】、そのままお持ちください。\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.eat === "no") {
+      return { reply: `現在はお食事に大きな支障はないのですね。\n\nWEB予約よりご予約をお取りください。\n\nWEB予約：${WEB}\n\n※割れた入れ歯は【接着剤などで修理せず】、そのままお持ちください。\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
   }
 
   /* ---- 詰め物が取れた ---- */

@@ -36,6 +36,61 @@
     .small { font-size:12px; color:var(--muted); margin-top:10px; line-height:1.6; }
     a { color:#8b7355; }
     .divider { height:1px; background:var(--line); margin:10px 0; opacity:.6; }
+
+    /* ---- 選択ボタン ---- */
+    .choice-btns { display:flex; gap:8px; flex-wrap:wrap; align-self:flex-start; margin-top:2px; }
+    .choice-btn {
+      padding:9px 18px; border:1px solid var(--accent); border-radius:20px;
+      background:#fff; color:var(--btn); cursor:pointer; font-size:13px;
+      font-family:system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      transition:all .2s; line-height:1.4;
+    }
+    .choice-btn:hover { background:var(--btn); color:#fff; }
+    .choice-btn:disabled { opacity:.4; cursor:not-allowed; background:#f0ece6; color:#999; border-color:#ddd; }
+
+    /* ---- プロフィール入力モーダル ---- */
+    .modal-overlay {
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center;
+      z-index:1000; opacity:0; transition:opacity .25s; pointer-events:none;
+    }
+    .modal-overlay.open { opacity:1; pointer-events:auto; }
+    .modal-card {
+      background:#fff; border-radius:16px; padding:28px 24px; max-width:380px; width:90%;
+      box-shadow:0 12px 40px rgba(0,0,0,.15); transform:translateY(20px); transition:transform .25s;
+    }
+    .modal-overlay.open .modal-card { transform:translateY(0); }
+    .modal-card h3 { margin:0 0 10px; font-size:16px; letter-spacing:.5px; }
+    .modal-card .modal-desc { font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 18px; }
+    .modal-field { margin-bottom:16px; }
+    .modal-field label { font-size:13px; color:var(--text); display:block; margin-bottom:6px; font-weight:600; }
+    .modal-field input[type="text"] {
+      width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+      font-size:14px; box-sizing:border-box; outline:none; transition:border-color .2s;
+      font-family:system-ui, sans-serif;
+    }
+    .modal-field input[type="text"]:focus { border-color:var(--accent); }
+    .dob-row { display:flex; gap:6px; align-items:center; }
+    .dob-row select {
+      padding:10px 6px; border:1px solid var(--line); border-radius:10px;
+      font-size:14px; flex:1; outline:none; background:#fff; color:var(--text);
+      font-family:system-ui, sans-serif;
+    }
+    .dob-row select:focus { border-color:var(--accent); }
+    .dob-lbl { font-size:13px; color:var(--muted); min-width:16px; text-align:center; }
+    .consent-row {
+      display:flex; align-items:flex-start; gap:10px; margin-bottom:20px;
+      cursor:pointer; font-size:13px; line-height:1.5; color:var(--text);
+    }
+    .consent-row input[type="checkbox"] { width:18px; height:18px; margin-top:2px; flex-shrink:0; accent-color:var(--btn); }
+    .modal-submit {
+      width:100%; padding:13px; border:none; border-radius:12px;
+      background:var(--btn); color:#fff; font-size:14px; font-weight:700;
+      cursor:pointer; transition:background .2s; letter-spacing:.5px;
+    }
+    .modal-submit:hover { background:var(--btn-hover); }
+    .modal-submit:disabled { opacity:.35; cursor:not-allowed; }
+    .modal-error { color:var(--danger); font-size:12px; margin-bottom:12px; display:none; }
   </style>
 </head>
 <body>
@@ -77,6 +132,36 @@
     </div>
   </div>
 
+  <!-- プロフィール入力モーダル -->
+  <div id="profileModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3>ご利用にあたって</h3>
+      <p class="modal-desc">このチャット内容は、院内で内容確認・対応のために保存されます。<br>以下をご入力のうえ「開始」を押してください。</p>
+
+      <label class="consent-row">
+        <input type="checkbox" id="modalConsent">
+        <span>上記の記録・保存に同意します</span>
+      </label>
+
+      <div class="modal-field">
+        <label>患者氏名（フルネーム）</label>
+        <input type="text" id="modalName" placeholder="例：山田 太郎" autocomplete="name">
+      </div>
+
+      <div class="modal-field">
+        <label>生年月日</label>
+        <div class="dob-row">
+          <select id="dobYear"><option value="">--</option></select><span class="dob-lbl">年</span>
+          <select id="dobMonth"><option value="">--</option></select><span class="dob-lbl">月</span>
+          <select id="dobDay"><option value="">--</option></select><span class="dob-lbl">日</span>
+        </div>
+      </div>
+
+      <div id="modalError" class="modal-error"></div>
+      <button id="modalSubmit" class="modal-submit" disabled>確認して開始</button>
+    </div>
+  </div>
+
 <script>
   // ★ここだけ確認：あなたのWorkerのURL
   const API_URL = "https://minami-inquiry-ai.373minami-dc.workers.dev/api/chat";
@@ -94,8 +179,9 @@
   const SESSION_KEY = "minami_inquiry_session_v1";
 
   let messages = loadMessages();
-  let faqFlow = null; // FAQ ステップフローの状態（Workers とやり取り）
+  let faqFlow = null;
 
+  /* ====== localStorage ====== */
   function loadMessages() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
     catch { return []; }
@@ -125,52 +211,127 @@
     refreshStatus();
   }
 
-  function validateDob(dob) {
-    // ざっくり YYYY-MM-DD（厳密でなくOK）
-    return /^\d{4}-\d{2}-\d{2}$/.test(dob);
+  /* ====== プロフィールモーダル ====== */
+  const modalEl       = document.getElementById("profileModal");
+  const modalConsent  = document.getElementById("modalConsent");
+  const modalName     = document.getElementById("modalName");
+  const dobYearEl     = document.getElementById("dobYear");
+  const dobMonthEl    = document.getElementById("dobMonth");
+  const dobDayEl      = document.getElementById("dobDay");
+  const modalSubmit   = document.getElementById("modalSubmit");
+  const modalError    = document.getElementById("modalError");
+
+  // ドロップダウン初期化
+  (function initDobSelects() {
+    const thisYear = new Date().getFullYear();
+    for (let y = thisYear; y >= 1920; y--) {
+      const o = document.createElement("option"); o.value = y; o.textContent = y;
+      dobYearEl.appendChild(o);
+    }
+    for (let m = 1; m <= 12; m++) {
+      const o = document.createElement("option"); o.value = m; o.textContent = m;
+      dobMonthEl.appendChild(o);
+    }
+    for (let d = 1; d <= 31; d++) {
+      const o = document.createElement("option"); o.value = d; o.textContent = d;
+      dobDayEl.appendChild(o);
+    }
+  })();
+
+  let _profileResolve = null;
+
+  function ensureProfile(forceReinput = false) {
+    return new Promise((resolve) => {
+      if (!forceReinput) {
+        const existing = getProfile();
+        if (existing && existing.name && existing.dob && existing.consent === true) {
+          resolve(existing);
+          return;
+        }
+      }
+      _profileResolve = resolve;
+      openProfileModal();
+    });
   }
 
-  function ensureProfile(forceReinput=false) {
-    if (!forceReinput) {
-      const existing = getProfile();
-      if (existing && existing.name && existing.dob && existing.consent === true) return existing;
+  function openProfileModal() {
+    // 既存プロフィールがあれば事前入力
+    const existing = getProfile();
+    if (existing) {
+      modalConsent.checked = true;
+      modalName.value = existing.name || "";
+      if (existing.dob) {
+        const p = existing.dob.split("-");
+        if (p.length === 3) {
+          dobYearEl.value = parseInt(p[0]) || "";
+          dobMonthEl.value = parseInt(p[1]) || "";
+          dobDayEl.value = parseInt(p[2]) || "";
+        }
+      }
+    } else {
+      modalConsent.checked = false;
+      modalName.value = "";
+      dobYearEl.value = "";
+      dobMonthEl.value = "";
+      dobDayEl.value = "";
     }
+    modalError.style.display = "none";
+    updateModalSubmitState();
+    modalEl.classList.add("open");
+  }
 
-    const consent = confirm("このチャット内容は、院内で内容確認・対応のために保存されます。よろしいですか？");
-    if (!consent) return null;
-
-    const name = prompt("患者氏名（フルネーム）を入力してください");
-    if (!name) return null;
-
-    let dob = prompt("生年月日を入力してください（例：1990-01-31）");
-    if (!dob) return null;
-    dob = dob.trim();
-
-    if (!validateDob(dob)) {
-      const ok = confirm("生年月日の形式が「YYYY-MM-DD」ではない可能性があります。このまま保存しますか？");
-      if (!ok) return null;
+  function closeProfileModal(result) {
+    modalEl.classList.remove("open");
+    if (_profileResolve) {
+      _profileResolve(result);
+      _profileResolve = null;
     }
+  }
 
-    const p = { name: name.trim(), dob: dob, consent: true, updated_at: new Date().toISOString() };
+  function updateModalSubmitState() {
+    const ok = modalConsent.checked
+      && modalName.value.trim()
+      && dobYearEl.value
+      && dobMonthEl.value
+      && dobDayEl.value;
+    modalSubmit.disabled = !ok;
+  }
+
+  modalConsent.addEventListener("change", updateModalSubmitState);
+  modalName.addEventListener("input", updateModalSubmitState);
+  dobYearEl.addEventListener("change", updateModalSubmitState);
+  dobMonthEl.addEventListener("change", updateModalSubmitState);
+  dobDayEl.addEventListener("change", updateModalSubmitState);
+
+  modalSubmit.addEventListener("click", () => {
+    const name = modalName.value.trim();
+    const y = dobYearEl.value;
+    const m = String(dobMonthEl.value).padStart(2, "0");
+    const d = String(dobDayEl.value).padStart(2, "0");
+    if (!name || !y || !m || !d) return;
+
+    const dob = y + "-" + m + "-" + d;
+    const p = { name, dob, consent: true, updated_at: new Date().toISOString() };
     setProfile(p);
-
-    // セッションも確定
     getOrCreateSessionId();
-    return p;
-  }
+    closeProfileModal(p);
+  });
 
+  // モーダル背景クリックでキャンセル
+  modalEl.addEventListener("click", (e) => {
+    if (e.target === modalEl) closeProfileModal(null);
+  });
+
+  /* ====== ステータス表示 ====== */
   function refreshStatus() {
     const p = getProfile();
     const sid = localStorage.getItem(SESSION_KEY);
-
-    profileStatusEl.textContent = p && p.name && p.dob
-      ? `${p.name} / ${p.dob}`
-      : "未入力";
-
-    sessionStatusEl.textContent = sid ? sid : "未作成";
+    profileStatusEl.textContent = (p && p.name && p.dob) ? (p.name + " / " + p.dob) : "未入力";
+    sessionStatusEl.textContent = sid || "未作成";
   }
 
-  function addBubble(role, text, source) {
+  /* ====== チャット描画 ====== */
+  function addBubble(role, text, source, options) {
     const div = document.createElement("div");
     div.className = "msg " + (role === "user" ? "me" : "ai");
     div.textContent = text;
@@ -181,6 +342,25 @@
       div.appendChild(tag);
     }
     chatEl.appendChild(div);
+
+    // 選択ボタン
+    if (options && Array.isArray(options) && options.length > 0 && role === "assistant") {
+      const row = document.createElement("div");
+      row.className = "choice-btns";
+      for (const opt of options) {
+        const btn = document.createElement("button");
+        btn.className = "choice-btn";
+        btn.textContent = opt.label;
+        btn.addEventListener("click", () => {
+          row.querySelectorAll("button").forEach(b => { b.disabled = true; });
+          inputEl.value = opt.value;
+          send();
+        });
+        row.appendChild(btn);
+      }
+      chatEl.appendChild(row);
+    }
+
     chatEl.scrollTop = chatEl.scrollHeight;
   }
 
@@ -197,12 +377,13 @@
     for (const m of messages) addBubble(m.role, m.content);
   }
 
+  /* ====== 送信 ====== */
   async function send() {
     const text = inputEl.value.trim();
     if (!text) return;
 
-    // プロフィール未入力ならここで取得
-    const profile = ensureProfile(false);
+    // プロフィール未入力ならモーダル表示（非同期）
+    const profile = await ensureProfile(false);
     if (!profile) {
       addBubble("assistant", "同意・氏名・生年月日の入力が確認できないため、送信を中止しました。");
       return;
@@ -241,11 +422,10 @@
       const data = await res.json();
       const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
 
-      // FAQ フロー状態を更新（Workers から返ってくる）
       faqFlow = data.faq_flow || null;
 
       messages.push({ role:"assistant", content:reply });
-      addBubble("assistant", reply, data.source);
+      addBubble("assistant", reply, data.source, data.reply_options || null);
       saveMessages();
     } catch (e) {
       addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
@@ -255,14 +435,14 @@
     }
   }
 
-  // UI events
+  /* ====== UI イベント ====== */
   sendBtn.addEventListener("click", send);
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
 
-  editProfileBtn.addEventListener("click", () => {
-    const p = ensureProfile(true);
+  editProfileBtn.addEventListener("click", async () => {
+    const p = await ensureProfile(true);
     if (p) addBubble("assistant", "入力情報を更新しました。");
   });
 
@@ -273,7 +453,7 @@
     addBubble("assistant", "入力情報をリセットしました。必要に応じて再入力してください。");
   });
 
-  // init
+  // 初期化
   refreshStatus();
   render();
 </script>

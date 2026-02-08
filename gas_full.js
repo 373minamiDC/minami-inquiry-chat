@@ -33,6 +33,8 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  var action = String((e && e.parameter && e.parameter.action) || "").toLowerCase();
+  if (action === "add_faq") return handleAddFaq_(e);
   return handleLog_(e);
 }
 
@@ -156,6 +158,42 @@ function handleKnowledge_(e) {
   });
 
   return json_({ ok: true, items: items });
+}
+
+/* ======================================================================
+ *  FAQ 追加ハンドラ（doPost から呼ばれる）
+ *  POST ?action=add_faq&token=xxx  body: { q, a, k, enabled }
+ *  または body: { items: [{ q, a, k, enabled }, ...] } で複数追加
+ * ====================================================================== */
+
+function handleAddFaq_(e) {
+  try {
+    var token = String((e && e.parameter && e.parameter.token) || "").trim();
+    if (!token) return json_({ ok: false, error: "missing token" });
+
+    var body = JSON.parse(e.postData.contents);
+    var items = Array.isArray(body.items) ? body.items : [body];
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName(SHEET_FAQ);
+    if (!sh) return json_({ ok: false, error: "FAQ sheet not found" });
+
+    var added = 0;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var q = String(it.q || "").trim();
+      var a = String(it.a || "").trim();
+      var k = String(it.k || "").trim();
+      var enabled = (it.enabled === false) ? "FALSE" : "TRUE";
+      if (!q || !a) continue;
+      sh.appendRow([q, a, k, enabled]);
+      added++;
+    }
+
+    return json_({ ok: true, added: added });
+  } catch (err) {
+    return json_({ ok: false, error: err.message });
+  }
 }
 
 /* ======================================================================

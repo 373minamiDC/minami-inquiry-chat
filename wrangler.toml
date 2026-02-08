@@ -2,8 +2,15 @@ name = "minami-inquiry-ai"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# ↓ Cloudflare Dashboard → Workers & Pages → 右サイドバーの「アカウントID」をコピーして貼り付け
 account_id = "a8d64f0d28363314978c8a0ddf8e7a68"
 
-# 環境変数はここでは定義しない（Cloudflare Dashboard の Settings > Variables で管理）
-# OPENAI_API_KEY, GAS_FAQ_URL, GAS_KNOWLEDGE_URL, GAS_LOG_URL, GAS_TOKEN, ALLOWED_ORIGINS
+# 非秘密の環境変数（wrangler deploy 時に自動設定される）
+[vars]
+GAS_FAQ_URL = "https://script.google.com/macros/s/AKfycbxR4vIJKyzbN9zgrOO3bRR2_0QX59kz6qA1Jw-wN5aZXYJRrNEK8t4slZGdXWDpD8Z1Uw/exec?action=faq"
+GAS_KNOWLEDGE_URL = "https://script.google.com/macros/s/AKfycbxR4vIJKyzbN9zgrOO3bRR2_0QX59kz6qA1Jw-wN5aZXYJRrNEK8t4slZGdXWDpD8Z1Uw/exec?action=knowledge"
+GAS_LOG_URL = "https://script.google.com/macros/s/AKfycbxR4vIJKyzbN9zgrOO3bRR2_0QX59kz6qA1Jw-wN5aZXYJRrNEK8t4slZGdXWDpD8Z1Uw/exec"
+ALLOWED_ORIGINS = "https://373minamidc.github.io"
+
+# 秘密の環境変数（Dashboard で手動設定、または wrangler secret put で設定）
+# OPENAI_API_KEY → wrangler secret put OPENAI_API_KEY
+# GAS_TOKEN      → wrangler secret put GAS_TOKEN
