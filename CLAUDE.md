@@ -19,19 +19,21 @@ Open `index.html` directly in a browser. No build step, no dependencies, no pack
 
 ## Architecture
 
-Everything lives in `index.html`:
+`index.html` にすべてのフロントエンドコードが入っている:
 
-- **CSS** (lines 7-36): Dark theme using CSS variables (`:root`), responsive layout with flexbox
-- **HTML** (lines 38-75): Notice/disclaimer card, profile status bar, chat area, input bar
-- **JavaScript** (lines 77-265): All application logic
+- **CSS**: ライト系・高級感テーマ（明朝体ベース、ゴールドブラウン系アクセント）
+  - モーダル（プロフィール入力用）
+  - 選択ボタン（FAQフロー用）
+- **HTML**: 注意書きカード、プロフィール状態バー、チャットエリア、入力バー、プロフィールモーダル
+- **JavaScript**: 全アプリケーションロジック
 
 ### Data Flow
 
 1. User types a message and clicks send
-2. `ensureProfile()` checks localStorage for patient profile; if missing, prompts for consent, name, and DOB via `confirm()`/`prompt()` dialogs
-3. `getOrCreateSessionId()` generates a UUID (or fallback timestamp-based ID) stored in localStorage
-4. POST request to `API_URL` with payload: `{ session_id, patient: {name, dob}, user_agent, page_url, messages }`
-5. Backend returns `{ reply: "..." }` which is rendered as an AI bubble
+2. `ensureProfile()` checks localStorage for patient profile; if missing, shows modal (consent + name + DOB dropdowns)
+3. `getOrCreateSessionId()` generates a UUID stored in localStorage
+4. POST request to `API_URL` with payload: `{ session_id, patient: {name, dob}, user_agent, page_url, messages, faq_flow }`
+5. Backend returns `{ reply, source, faq_flow, reply_options }` — reply is rendered as AI bubble, reply_options as clickable buttons
 
 ### localStorage Keys
 
@@ -41,21 +43,22 @@ Everything lives in `index.html`:
 | `minami_patient_profile_v1` | Patient info | `{name, dob, consent, updated_at}` |
 | `minami_inquiry_session_v1` | Session ID | UUID string |
 
-### Key Functions
+### Key Functions (index.html)
 
-- `ensureProfile(forceReinput)` - Consent + patient info collection flow
-- `send()` - Main send handler: validates profile, calls API, renders response
-- `render()` - Rebuilds chat from `messages` array; shows welcome message if empty
-- `refreshStatus()` - Updates profile/session display in the status bar
+- `ensureProfile(forceReinput)` - **async** Promise ベース。モーダルで同意+氏名+DOB(ドロップダウン)を取得
+- `send()` - メイン送信ハンドラ: プロフィール確認 → API呼び出し → レスポンス描画（reply_options があればボタン表示）
+- `addBubble(role, text, source, options)` - チャットバブル追加。options があれば選択ボタンも描画
+- `render()` - messages 配列からチャットを再構築
+- `refreshStatus()` - プロフィール/セッション表示を更新
 
 ## System Architecture (3層構成)
 
 ```
-index.html (フロントエンド)
+index.html (フロントエンド / GitHub Pages)
   ↓ POST /api/chat (faq_flow 状態を含む)
 worker.js (Cloudflare Workers)
-  ├─ 1) FAQ フロー（ステップ分岐・slot 管理）← スプレッドシート FAQ シート
-  ├─ 2) Knowledge 要約（全件取得→スコアリング→OpenAI要約）← スプレッドシート KNOWLEDGE シート
+  ├─ 1) FAQ フロー（ステップ分岐・slot 管理・reply_options 返却）← スプレッドシート FAQ シート
+  ├─ 2) Knowledge 要約（全件取得→NFKC+バイグラムスコアリング→OpenAI要約）← スプレッドシート KNOWLEDGE シート
   └─ 3) 通常 OpenAI 回答（FAQにもKnowledgeにも該当なし）
   ↓ GAS Web App (doGet / doPost)
 Google スプレッドシート
@@ -65,40 +68,77 @@ Google スプレッドシート
 ```
 
 ### Workers 環境変数 (Cloudflare Settings)
+
+**wrangler.toml に定義済み（非秘密）:**
 - `GAS_FAQ_URL` : FAQ 取得用 GAS URL (?action=faq)
 - `GAS_KNOWLEDGE_URL` : Knowledge 取得用 GAS URL (?action=knowledge)
 - `GAS_LOG_URL` : ログ保存用 GAS URL
-- `GAS_TOKEN` : ログ保存用トークン
-- `OPENAI_API_KEY` : OpenAI API キー
-- `OPENAI_MODEL` : 使用モデル（デフォルト: gpt-4o-mini）
 - `ALLOWED_ORIGINS` : CORS 許可オリジン
 
+**Dashboard で手動設定（秘密）:**
+- `GAS_TOKEN` : ログ保存用トークン（`wrangler secret put GAS_TOKEN`）
+- `OPENAI_API_KEY` : OpenAI API キー（`wrangler secret put OPENAI_API_KEY`）
+- `OPENAI_MODEL` : 使用モデル（デフォルト: gpt-4o-mini）
+
 ### ローカルファイル
-- `worker.js` : Cloudflare Workers 統合版コード（FAQ フロー + Knowledge + OpenAI）
-- `gas_full.js` : GAS 完全版（doGet/doPost/FAQ/Knowledge/Logs すべて含む）※ GAS エディタに貼り付け済み
-- `gas_knowledge_fix.js` : （旧）GAS の handleKnowledge_ 関数の修正版 → gas_full.js に統合済み
-- `index.html` : フロントエンド（faq_flow 対応済み、source タグ表示あり）
-- `wrangler.toml` : Cloudflare Workers デプロイ設定（`wrangler deploy` で使用）
+- `worker.js` : Cloudflare Workers 統合版コード（FAQ フロー + Knowledge + OpenAI + reply_options）
+- `gas_full.js` : GAS 完全版（doGet/doPost/FAQ/Knowledge/Logs/AddFAQ すべて含む）※ GAS エディタに貼り付け済み
+- `index.html` : フロントエンド（モーダル入力・選択ボタン・faq_flow 対応・source タグ表示）
+- `wrangler.toml` : Cloudflare Workers デプロイ設定（非秘密の環境変数含む）
+
+### Worker レスポンス形式
+```json
+{
+  "reply": "回答テキスト",
+  "source": "faq_flow | faq_flow_decision | faq | knowledge_ai | openai | system",
+  "faq_flow": { "key": "入れ歯が痛い", "step": 1, "slots": {} },
+  "suggest_end": false,
+  "reply_options": [
+    { "label": "はい", "value": "はい" },
+    { "label": "いいえ", "value": "いいえ" }
+  ]
+}
+```
 
 ## デプロイ方法
 
 ### index.html（フロントエンド）
 GitHub に push → GitHub Pages が自動反映（設定済み）
+```bash
+git add index.html
+git commit -m "変更内容"
+git push origin main
+```
 
 ### worker.js（Cloudflare Workers）
 ```bash
-# 初回のみ: wrangler CLI インストール
-npm install -g wrangler
-wrangler login
-
-# wrangler.toml の account_id を設定してから:
+# プロジェクトディレクトリで:
 wrangler deploy
 ```
-※ 環境変数（API キー等）は Cloudflare Dashboard > Settings > Variables で管理
+※ 秘密の環境変数（OPENAI_API_KEY, GAS_TOKEN）は Cloudflare Dashboard で管理
+※ `wrangler deploy` しても秘密変数は上書きされない（wrangler.toml に非秘密のみ記載）
 
 ### GAS（Google Apps Script）
 GAS スクリプトエディタで `gas_full.js` の内容を貼り付け → デプロイ > デプロイを管理 > 新しいバージョン
 ※ 新しいバージョンを選ばないと反映されない
+
+### FAQ をスプレッドシートに追加する方法
+GAS の `handleAddFaq_` エンドポイントを使って API 経由で追加可能:
+```javascript
+// Node.js スクリプトで追加（例）
+const body = JSON.stringify({
+  q: "質問テキスト",
+  a: "[[step1 expect=yesno slot=slotname]]質問文\\n（「はい」または「いいえ」でお答えください）",
+  k: "キーワード1,キーワード2",
+  enabled: true,
+});
+fetch(GAS_URL + "?action=add_faq&token=任意の文字列", {
+  method: "POST",
+  headers: { "Content-Type": "application/json; charset=utf-8" },
+  body,
+});
+```
+※ FAQ にステップフローを追加した場合、`worker.js` の `decideFlowReply` 関数にも対応する分岐ロジックを追加する必要がある
 
 ## 現在の作業状況（2026-02-08 時点）
 
@@ -112,16 +152,32 @@ GAS スクリプトエディタで `gas_full.js` の内容を貼り付け → �
   - スコアリング改善: NFKC 正規化 + 日本語助詞分割 + バイグラムマッチング
     - Notta 由来テキストの CJK 部首補助文字（⻭≠歯 等）に対応するためバイグラム照合を導入
   - source タグ表示（`[source: knowledge_ai]` 等）を index.html に追加
-- wrangler.toml 作成（半自動デプロイ対応）
+- **wrangler.toml 作成**（半自動デプロイ対応、非秘密の環境変数を `[vars]` に記載）
+- **UIリニューアル**: ダークテーマ → ライト・高級感テーマ（明朝体、ゴールドブラウン系）
+- **プロフィール入力をモーダル化**: prompt/confirm → モーダルウィンドウ（同意チェック + 氏名 + 生年月日ドロップダウン選択）
+- **FAQ 選択ボタン**: Workers が `reply_options` を返し、フロントエンドで「はい/いいえ」等のボタンを表示 → クリックで自動送信
+- **GAS に FAQ 追加 API（handleAddFaq_）を実装**: POST ?action=add_faq で FAQ をスプレッドシートに追加可能
+- **FAQ フロー追加済み**:
+  - 歯がしみる（冷たい・甘い・風でしみる）— 3分岐（治療後/治療中/不明）
+  - つめもの（かぶせもの・銀歯など）が取れた — 治療中/否 → 症状分岐
+  - 入れ歯が痛い — 食事に支障あり→電話 / なし→WEB（slot: eating）
+  - 入れ歯が割れた — 食事に支障あり→電話 / なし→WEB（slot: eat）※ユーザーが手動でスプレッドシートに追加
 
 ### 今後の作業
-- FAQ シートへの新規項目追加
+- FAQ シートへの新規項目追加（ユーザーが雰囲気を伝えると、正しい形式に変換して追加する運用）
 - KNOWLEDGE シートへの患者やり取り要約データの追加
 - 完全自動デプロイ（GitHub Actions）への移行（必要になったら）
 
 ## Important Notes
 
-- The API endpoint URL is hardcoded on line 79 — change it there when switching environments
+- The API endpoint URL is hardcoded in index.html (`API_URL` 変数) — change it there when switching environments
 - All UI text is in Japanese
 - The app is a medical inquiry tool with explicit disclaimers — do not remove the notice/disclaimer section
-- DOB validation is loose (`YYYY-MM-DD` regex only); the user can override format warnings
+- DOB is now collected via year/month/day dropdowns (no longer a text prompt)
+- `wrangler deploy` は非秘密の環境変数のみ設定する。秘密変数（OPENAI_API_KEY, GAS_TOKEN）は Dashboard で管理されており、deploy で消えない
+- FAQ を追加するときは **スプレッドシートへの追加** と **worker.js の decideFlowReply への分岐ロジック追加** の2ステップが必要
+
+## Git 設定
+- リポジトリ: https://github.com/373minamiDC/minami-inquiry-chat
+- user.name: 373minamiDC
+- user.email: 373minami.dc@gmail.com
