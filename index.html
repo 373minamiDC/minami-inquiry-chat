@@ -236,7 +236,6 @@
       }
 
       const data = await res.json();
-      console.log("[DEBUG] API response:", data);
       const reply = data.reply || "すみません、うまく回答できませんでした。もう一度お試しください。";
 
       // FAQ フロー状態を更新（Workers から返ってくる）

@@ -1,0 +1,9 @@
+name = "minami-inquiry-ai"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# ↓ Cloudflare Dashboard → Workers & Pages → 右サイドバーの「アカウントID」をコピーして貼り付け
+account_id = "a8d64f0d28363314978c8a0ddf8e7a68"
+
+# 環境変数はここでは定義しない（Cloudflare Dashboard の Settings > Variables で管理）
+# OPENAI_API_KEY, GAS_FAQ_URL, GAS_KNOWLEDGE_URL, GAS_LOG_URL, GAS_TOKEN, ALLOWED_ORIGINS
