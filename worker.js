@@ -498,16 +498,45 @@ function pickRelevantFaq(items, userText, limit = 5) {
     const keys = k.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
     let score = 0;
 
-    for (const kw of keys) if (kw && t.includes(kw)) score += 10;
+    for (const kw of keys) {
+      if (!kw) continue;
+      if (t.includes(kw) || faqStemMatch(t, kw)) score += 10;
+    }
 
     const qLower = q.toLowerCase();
-    if (qLower.length >= 4 && t.includes(qLower)) score += 3;
+    if (qLower.length >= 4 && (t.includes(qLower) || faqStemMatch(t, qLower))) score += 3;
 
     if (score > 0) scored.push({ score, q, a });
   }
 
   scored.sort((x, y) => y.score - x.score);
   return scored.slice(0, limit);
+}
+
+/** キーワードの語幹を生成し、ユーザーテキストに含まれるか判定（活用形対応） */
+function faqStemMatch(text, keyword) {
+  const kw = String(keyword || "").trim();
+  if (kw.length < 3) return false;
+
+  // 1文字の動詞語尾を除去して語幹チェック
+  const endings1 = ["る", "い", "く", "す", "つ", "ぬ", "ぶ", "む", "う"];
+  for (const e of endings1) {
+    if (kw.endsWith(e)) {
+      const stem = kw.slice(0, -1);
+      if (stem.length >= 2 && text.includes(stem)) return true;
+    }
+  }
+
+  // 2文字以上の語尾を除去して語幹チェック
+  const endings2 = ["する", "した", "ない", "たい", "ます", "ました", "ている", "ていた", "れる", "れた"];
+  for (const e of endings2) {
+    if (kw.endsWith(e) && kw.length > e.length + 1) {
+      const stem = kw.slice(0, -e.length);
+      if (stem.length >= 2 && text.includes(stem)) return true;
+    }
+  }
+
+  return false;
 }
 
 /* ======================================================================
@@ -639,6 +668,15 @@ function normalizeChoiceBySchema(t, choice, flowKey) {
   const s = String(t || "").trim().toLowerCase();
   const ch = String(choice || "");
 
+  /* ---- 歯がグラグラする（4択）---- */
+  if (flowKey === "歯がグラグラする") {
+    if (s.includes("自分") || s.includes("天然")) return "1";
+    if (s.includes("詰め") || s.includes("つめ")) return "2";
+    if (s.includes("かぶせ") || s.includes("被せ") || s.includes("クラウン")) return "3";
+    if (s.includes("差し歯") || s.includes("さしば")) return "4";
+    return "";
+  }
+
   if (ch.includes("3")) {
     if (s.includes("治療した") || s.includes("治療後") || s.includes("詰めた") || s.includes("被せた") ||
         s.includes("インレー") || s.includes("クラウン") || s.includes("レジン") || s.includes("詰め物した")) return "1";
@@ -713,11 +751,37 @@ function buildReplyOptions(step) {
   if (expect === "choice") {
     const text = step.text || "";
     const options = [];
+
+    // 行頭の番号パース（複数フォーマット対応: 1） 1) 1. 1、 1: ① 等）
     for (const line of text.split(/\n/)) {
-      const m = line.match(/^\s*(\d)[）\)]\s*(.+)/);
-      if (m) options.push({ label: m[1] + "）" + m[2].trim(), value: m[1] });
+      const m = line.match(/^\s*(\d)[）\)\.\．、:：]\s*(.+)/);
+      if (m) { options.push({ label: m[1] + "）" + m[2].trim(), value: m[1] }); continue; }
+      // ① ② ③ ④ 形式
+      const m2 = line.match(/^\s*([①②③④⑤⑥⑦⑧⑨])\s*(.+)/);
+      if (m2) {
+        const d = "①②③④⑤⑥⑦⑧⑨".indexOf(m2[1]) + 1;
+        options.push({ label: d + "）" + m2[2].trim(), value: String(d) });
+      }
     }
     if (options.length >= 2) return options;
+
+    // フォールバック: choice メタから番号ボタンを生成
+    const choiceMeta = step.meta.choice || "";
+    if (choiceMeta) {
+      const digits = [...choiceMeta].filter(c => /\d/.test(c));
+      if (digits.length >= 2) {
+        // テキスト内から各番号の説明を探す
+        const fallback = [];
+        for (const d of digits) {
+          let label = d;
+          const re = new RegExp("(?:^|[\\s（(「])?" + d + "[）\\)\\.．、:：\\s]\\s*(.+)", "m");
+          const fm = text.match(re);
+          if (fm) label = d + "）" + fm[1].split(/\n/)[0].trim();
+          fallback.push({ label, value: d });
+        }
+        return fallback;
+      }
+    }
   }
 
   return null;
@@ -802,6 +866,46 @@ function decideFlowReply(flowKey, slots) {
     }
     if (s.eat === "no") {
       return { reply: `現在はお食事に大きな支障はないのですね。\n\nWEB予約よりご予約をお取りください。\n\nWEB予約：${WEB}\n\n※割れた入れ歯は【接着剤などで修理せず】、そのままお持ちください。\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 歯がグラグラする ---- */
+  if (key === "歯がグラグラする") {
+    // type: 1=自分の歯, 2=詰め物, 3=かぶせ物, 4=差し歯
+    if (s.type === "1") {
+      if (s.pain === "no") {
+        return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにしてください。\nウェブにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.pain === "yes") {
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n応急処置させていただきます。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにしてください。\nウェブにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      return null;
+    }
+    if (s.type === "2") {
+      if (s.pain === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにして、応急処置しますのでお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.pain === "no") {
+        return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにして様子を見ましょう。\nウェブにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    if (s.type === "3" || s.type === "4") {
+      // かぶせ物・差し歯（同じ分岐）
+      if (s.pain === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにして様子を見てください。\nご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.pain === "no") {
+        return { reply: `ご回答ありがとうございます。\n\nそこで噛まないようにできるのであれば、噛まないようにして様子を見ましょう。\nWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
     }
     return null;
   }
