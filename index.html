@@ -48,6 +48,16 @@
     .choice-btn:hover { background:var(--btn); color:#fff; }
     .choice-btn:disabled { opacity:.4; cursor:not-allowed; background:#f0ece6; color:#999; border-color:#ddd; }
 
+    /* ---- チャット終了ボタン ---- */
+    .end-chat-btn {
+      display:block; margin:12px auto 4px; padding:12px 28px;
+      border:2px solid var(--danger); border-radius:24px;
+      background:#fff; color:var(--danger); font-size:14px; font-weight:700;
+      cursor:pointer; transition:all .2s; letter-spacing:.5px;
+      font-family:system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    }
+    .end-chat-btn:hover { background:var(--danger); color:#fff; }
+
     /* ---- プロフィール入力モーダル ---- */
     .modal-overlay {
       position:fixed; top:0; left:0; width:100%; height:100%;
@@ -364,6 +374,22 @@
     chatEl.scrollTop = chatEl.scrollHeight;
   }
 
+  function addEndChatButton() {
+    const btn = document.createElement("button");
+    btn.className = "end-chat-btn";
+    btn.textContent = "チャットを終了する";
+    btn.addEventListener("click", () => {
+      messages = [];
+      faqFlow = null;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      refreshStatus();
+      render();
+    });
+    chatEl.appendChild(btn);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
   function render() {
     chatEl.innerHTML = "";
     if (messages.length === 0) {
@@ -375,6 +401,9 @@
       return;
     }
     for (const m of messages) addBubble(m.role, m.content);
+    if (messages.length > 0 && messages[messages.length - 1].suggest_end) {
+      addEndChatButton();
+    }
   }
 
   /* ====== 送信 ====== */
@@ -424,8 +453,11 @@
 
       faqFlow = data.faq_flow || null;
 
-      messages.push({ role:"assistant", content:reply });
+      const msgObj = { role:"assistant", content:reply };
+      if (data.suggest_end) msgObj.suggest_end = true;
+      messages.push(msgObj);
       addBubble("assistant", reply, data.source, data.reply_options || null);
+      if (data.suggest_end) addEndChatButton();
       saveMessages();
     } catch (e) {
       addBubble("assistant", "通信エラーが発生しました。もう一度お試しください。\n（" + e.message + "）");
