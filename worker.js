@@ -496,9 +496,31 @@ function pickRelevantFaq(items, userText, limit = 5) {
     if (!q || !a) continue;
 
     const keys = k.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-    let score = 0;
 
+    // --- 必須キーワード（*接頭辞）サポート ---
+    const requiredKeys = [];
+    const normalKeys = [];
     for (const kw of keys) {
+      if (kw.startsWith("*") || kw.startsWith("\uff0a")) {
+        const rk = kw.slice(1).trim();
+        if (rk) requiredKeys.push(rk);
+      } else {
+        normalKeys.push(kw);
+      }
+    }
+
+    let score = 0;
+    let requiredMatched = requiredKeys.length === 0;
+
+    for (const kw of requiredKeys) {
+      if (t.includes(kw) || faqStemMatch(t, kw)) {
+        score += 10;
+        requiredMatched = true;
+      }
+    }
+    if (!requiredMatched) continue;
+
+    for (const kw of normalKeys) {
       if (!kw) continue;
       if (t.includes(kw) || faqStemMatch(t, kw)) score += 10;
     }
@@ -506,11 +528,35 @@ function pickRelevantFaq(items, userText, limit = 5) {
     const qLower = q.toLowerCase();
     if (qLower.length >= 4 && (t.includes(qLower) || faqStemMatch(t, qLower))) score += 3;
 
+    // --- q の主語がユーザーテキストに無い場合のガード ---
+    // 例: q="入れ歯が痛い" → 主語"入れ歯"がテキストに無ければスコアを抑制
+    if (requiredKeys.length === 0 && score > 0) {
+      const qSubject = extractQSubject(qLower);
+      if (qSubject && qSubject.length >= 2
+          && !t.includes(qSubject) && !faqStemMatch(t, qSubject)) {
+        score = Math.min(score, 5);
+      }
+    }
+
     if (score > 0) scored.push({ score, q, a });
   }
 
   scored.sort((x, y) => y.score - x.score);
   return scored.slice(0, limit);
+}
+
+/** q（質問文）から主語を抽出（「が」「は」の前の部分） */
+function extractQSubject(q) {
+  const particles = ["\u304c", "\u306f"];   // が, は
+  let earliest = q.length;
+  for (const p of particles) {
+    const idx = q.indexOf(p);
+    if (idx > 0 && idx < earliest) earliest = idx;
+  }
+  if (earliest > 0 && earliest < q.length) {
+    return q.slice(0, earliest);
+  }
+  return null;
 }
 
 /** キーワードの語幹を生成し、ユーザーテキストに含まれるか判定（活用形対応） */
@@ -668,6 +714,88 @@ function normalizeChoiceBySchema(t, choice, flowKey) {
   const s = String(t || "").trim().toLowerCase();
   const ch = String(choice || "");
 
+  /* ---- 歯を抜いたところが痛い（4択）---- */
+  if (flowKey === "歯を抜いたところが痛い") {
+    if (s.includes("1") && s.includes("3") && !s.includes("7") && !s.includes("14")) return "1";
+    if (s.includes("3") && s.includes("7") && !s.includes("14")) return "2";
+    if (s.includes("7") || s.includes("14") || s.includes("2週")) return "3";
+    if (s.includes("それ以上") || s.includes("2週間以上") || s.includes("1ヶ月") || s.includes("1か月") || s.includes("ずっと")) return "4";
+    return "";
+  }
+
+  /* ---- 入れ歯が合わない・壊れた（2択）---- */
+  if (flowKey === "入れ歯が合わない・壊れた") {
+    if (s.includes("壊れ") || s.includes("割れ") || s.includes("折れ")) return "1";
+    if (s.includes("合わ") || s.includes("ゆるい") || s.includes("外れ") || s.includes("擦れ")) return "2";
+    return "";
+  }
+
+  /* ---- 治療後に咬み合わせがおかしい気がする（2択）---- */
+  if (flowKey === "治療後に咬み合わせがおかしい気がする") {
+    if (s.includes("痛") || s.includes("いた")) return "1";
+    if (s.includes("違和感") || s.includes("高") || s.includes("気になる")) return "2";
+    return "";
+  }
+
+  /* ---- 被せ物・詰め物を入れたばかりだが、違和感がある（2択）---- */
+  if (flowKey === "被せ物・詰め物を入れたばかりだが、違和感がある") {
+    if (s.includes("痛") || s.includes("いた")) return "1";
+    if (s.includes("形") || s.includes("高") || s.includes("違和感")) return "2";
+    return "";
+  }
+
+  /* ---- 麻酔後のしびれ・感覚がおかしいのが続いている（2択）---- */
+  if (flowKey === "麻酔後のしびれ・感覚がおかしいのが続いている") {
+    if (s.includes("当日") || s.includes("翌日") || s.includes("今日") || s.includes("昨日")) return "1";
+    if (s.includes("2日") || s.includes("3日") || s.includes("数日") || s.includes("1週間") || s.includes("それ以上")) return "2";
+    return "";
+  }
+
+  /* ---- 処方された薬がなくなった・足りない（2択）---- */
+  if (flowKey === "処方された薬がなくなった・足りない") {
+    if (s.includes("抗生") || s.includes("抗菌")) return "1";
+    if (s.includes("痛み止め") || s.includes("ロキソニン") || s.includes("鎮痛")) return "2";
+    return "";
+  }
+
+  /* ---- 薬にアレルギー反応が出た気がする（2択）---- */
+  if (flowKey === "薬にアレルギー反応が出た気がする（発疹・かゆみなど）") {
+    if (s.includes("軽") || s.includes("発疹") || s.includes("かゆ") || s.includes("蕁麻疹")) return "1";
+    if (s.includes("呼吸") || s.includes("腫れ") || s.includes("重") || s.includes("息")) return "2";
+    return "";
+  }
+
+  /* ---- 歯周病治療後も歯茎から血が出る（2択）---- */
+  if (flowKey === "歯周病治療後も歯茎から血が出る") {
+    if (s.includes("歯磨き") || s.includes("ブラッシング") || s.includes("磨く") || s.includes("磨い")) return "1";
+    if (s.includes("何もしなくても") || s.includes("常に") || s.includes("いつも") || s.includes("勝手に")) return "2";
+    return "";
+  }
+
+  /* ---- 歯ぎしり用マウスピースが壊れた・なくした（2択）---- */
+  if (flowKey === "歯ぎしり用マウスピース（ナイトガード）が壊れた・なくした") {
+    if (s.includes("壊れ") || s.includes("割れ") || s.includes("ひび")) return "1";
+    if (s.includes("なくし") || s.includes("紛失") || s.includes("失くし")) return "2";
+    return "";
+  }
+
+  /* ---- 矯正装置が外れた・壊れた（2択）---- */
+  if (flowKey === "矯正装置が外れた・壊れた（通院中の方）") {
+    if (s.includes("ワイヤー") || s.includes("刺さ") || s.includes("痛")) return "1";
+    if (s.includes("ブラケット") || s.includes("外れ") || s.includes("取れ")) return "2";
+    return "";
+  }
+
+  /* ---- 歯茎が腫れて痛い（5択）---- */
+  if (flowKey === "歯茎が腫れて痛い") {
+    if (s.includes("虫歯")) return "1";
+    if (s.includes("根管") || s.includes("根っこ") || s.includes("神経")) return "2";
+    if (s.includes("抜歯") || s.includes("抜い")) return "3";
+    if (s.includes("インプラント")) return "4";
+    if (s.includes("入れ歯") || s.includes("義歯")) return "5";
+    return "";
+  }
+
   /* ---- 歯がグラグラする（4択）---- */
   if (flowKey === "歯がグラグラする") {
     if (s.includes("自分") || s.includes("天然")) return "1";
@@ -707,6 +835,16 @@ function buildRepairPrompt(questionText) {
  *  Step Advance（slot 済みはスキップ）
  * ====================================================================== */
 
+function checkStepCondition(cond, slots) {
+  if (!cond) return true;
+  const m = String(cond).match(/^([a-zA-Z_]+):(.+)$/);
+  if (!m) return true;
+  const slotName = m[1];
+  const allowed = m[2].split("|").map(v => v.trim());
+  const val = (slots && slots[slotName]) || "";
+  return allowed.includes(val);
+}
+
 function advanceSteps(steps, flow, startFrom) {
   const total = steps.length;
   let idx = Math.max(1, startFrom);
@@ -716,6 +854,13 @@ function advanceSteps(steps, flow, startFrom) {
 
     if (st.tag === "final") {
       return { reply: st.text, newFlow: null, suggest_end: true, reply_options: null };
+    }
+
+    // condition チェック（条件不成立ならスキップ）
+    const cond = st?.meta?.condition || "";
+    if (cond && !checkStepCondition(cond, flow?.slots)) {
+      idx++;
+      continue;
     }
 
     const slot = st?.meta?.slot || "";
@@ -801,6 +946,10 @@ function prefillSlotsFromFreeText(flow, steps, userText) {
     const slot = st?.meta?.slot || "";
     const expect = st?.meta?.expect || "";
     if (!slot || flow.slots[slot]) continue;
+
+    // condition チェック（条件不成立のステップは prefill しない）
+    const cond = st?.meta?.condition || "";
+    if (cond && !checkStepCondition(cond, flow.slots)) continue;
 
     const judged = judgeAnswer(t, { expect, choice: st?.meta?.choice || "", flowKey: flow.key });
     if (judged.ok && judged.value) {
@@ -910,6 +1059,142 @@ function decideFlowReply(flowKey, slots) {
     return null;
   }
 
+  /* ---- 歯茎が腫れて痛い ---- */
+  if (key === "歯茎が腫れて痛い") {
+    if (s.treating === "yes") {
+      // treatment: 1=虫歯, 2=根管, 3=抜歯, 4=インプラント, 5=入れ歯
+      if (s.treatment === "4") {
+        // インプラント → 即決：電話
+        return { reply: `ご回答ありがとうございます。\n\nインプラント治療中の歯茎の腫れ・痛みは、早めの対応が必要です。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.treatment === "5") {
+        // 入れ歯 → 食事できるか
+        if (s.denture_eat === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n入れ歯を外してお食事ができる場合は、入れ歯を外して様子を見てください。\n入れ歯の調整が必要ですので、WEBにてご予約をお取りください。\n\n入れ歯は受診時にお持ちください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.denture_eat === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n入れ歯を外すとお食事がしにくい場合は、入れ歯の調整が必要です。\nお電話にてご予約をお取りください。\n\n入れ歯は受診時にお持ちください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      if (s.treatment === "1") {
+        // 虫歯
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n虫歯の治療中で何もしなくてもズキズキする場合は、神経の処置が必要になる可能性があります。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n虫歯の治療後は、歯茎が一時的に腫れることがあります。\n1週間ほど様子を見ていただき、改善しない場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      if (s.treatment === "2") {
+        // 根管治療
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n根管治療中で何もしなくてもズキズキする場合は、根っこの先端に病巣がある可能性があります。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n根管治療中は、2〜3日ジーンとした痛みが出ることがあります。\n徐々に落ち着くことが多いので、次の予約まで様子を見てください。\n改善しない場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      if (s.treatment === "3") {
+        // 抜歯
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n抜歯後の腫れ・痛みは2週間ほど続くことがありますが、何もしなくてもズキズキする場合やお顔が腫れてきた場合は、早めに受診してください。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n抜歯後の腫れ・痛みは2週間ほど続くことがあります。\n徐々に落ち着くことが多いですが、2週間経っても腫れが続く場合はお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      return null;
+    }
+    if (s.treating === "no") {
+      if (s.wisdom === "yes") {
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n親知らず周囲の炎症（智歯周囲炎）の可能性があります。\n何もしなくてもズキズキする場合は早めの受診をおすすめします。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n親知らず周囲の炎症（智歯周囲炎）の可能性があります。\n繰り返す場合は抜歯が必要になるケースが多いです。\nWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      if (s.wisdom === "no") {
+        if (s.throb === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\n歯周病、もしくは歯の根っこの先に病巣がある可能性があります。\n何もしなくてもズキズキする場合は早めの受診をおすすめします。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.throb === "no") {
+          return { reply: `ご回答ありがとうございます。\n\n歯周病、もしくは歯の根っこの先に病巣がある可能性があります。\nWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 歯を抜いたところが痛い ---- */
+  if (key === "歯を抜いたところが痛い") {
+    if (s.duration === "1") {
+      return { reply: `ご回答ありがとうございます。\n\n抜いた直後は痛みが続く場合があります。長くて2週間ほど続く場合もあります。\n経過観察で問題ないことが多いです。\n\n発熱が出ているなどの症状があれば、すぐに受診が必要な場合がありますので、診療時間内であればお電話ください。\n診療時間外であれば、救急などにお問い合わせください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.duration === "2") {
+      return { reply: `ご回答ありがとうございます。\n\n抜いてからは痛みが続く場合があります。長くて2週間ほど続く場合もあります。\n経過観察で問題ないことが多いです。\n\n発熱が出ているなどの症状があれば、すぐに受診が必要な場合がありますので、診療時間内であればお電話ください。\n診療時間外であれば、救急などにお問い合わせください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.duration === "3") {
+      return { reply: `ご回答ありがとうございます。\n\n抜歯後は痛みが続く場合があります。長くて2週間ほど続く場合もあります。\n抜いてから痛みが強くなっている、もしくは痛みが変わらない場合は、一度受診した方がいいと思いますので、診療時間内であればお電話ください。\n\n発熱が出ているなどの症状があれば、すぐに受診が必要な場合がありますので、診療時間内にお電話、もしくは診療時間外であれば、救急などにお問い合わせください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.duration === "4") {
+      return { reply: `ご回答ありがとうございます。\n\n2週間以上続く場合は、すぐに受診した方がいい可能性があるため、診療時間内にお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 歯が欠けた・折れた ---- */
+  if (key === "歯が欠けた・折れた") {
+    if (s.pain === "no") {
+      return { reply: `ご回答ありがとうございます。\n\n見た目が気になる場合や、舌や頬に当たって痛い場合は、WEBにてご予約をお取りください。\n症状がなければ経過観察でも問題ない場合が多いですが、早めの受診をおすすめします。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.pain === "yes") {
+      if (s.throb === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\n神経に近い可能性があります。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.throb === "no") {
+        return { reply: `ご回答ありがとうございます。\n\n応急処置が可能です。そこで噛まないようにして、WEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 血が止まらない ---- */
+  if (key === "血が止まらない") {
+    if (s.extraction === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n抜歯した直後であれば、血がにじむ程度の出血をすることがあります。\n\nうつむいた時に血がポタポタ垂れるほど出ている場合は、以下の手順で対応してください：\n1. ガーゼ、もしくは清潔なキッチンペーパーなどを用意する\n2. 抜いたところをギュッと抑える、もしくはしっかり圧迫するようにして5分から20分間噛む\n\n多くの場合、これで止まることが多いです。\nそれでも止まらない場合は、診療時間内であれば当院にお電話ください。診療時間外であれば、救急窓口にお問い合わせください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.extraction === "no") {
+      if (s.trauma === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\n診療時間内であれば、当院にお電話ください。診療時間外であれば、救急窓口にお問い合わせください。\n\n現在できることは、出血が出ている部分をガーゼ、清潔なガーゼ、もしくは清潔なティッシュなどで、ぎゅっと圧迫してください。\nしっかり圧迫し、受診してください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.trauma === "no") {
+        return { reply: `ご回答ありがとうございます。\n\n一度受診した方がいいと思われますので、診療時間内に当院にお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 物を噛むと痛い ---- */
+  if (key === "物を噛むと痛い") {
+    if (s.throb === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n虫歯が深い、もしくは根っこの先の炎症、もしくは咬合性外傷、歯周病の進行の可能性があります。\n\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.throb === "no") {
+      return { reply: `ご回答ありがとうございます。\n\n虫歯が深い、もしくは根っこの先の炎症、もしくは咬合性外傷、歯周病の進行の可能性があります。\n\nWebにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
   /* ---- 詰め物が取れた ---- */
   if (key === "つめもの（かぶせもの・銀歯など）が取れた") {
     if (s.treating === "no") {
@@ -943,6 +1228,236 @@ function decideFlowReply(flowKey, slots) {
         }
       }
     }
+  }
+
+  /* ---- 顎が痛い・口が開きにくい ---- */
+  if (key === "顎が痛い・口が開きにくい") {
+    if (s.throb === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n顎関節症や筋肉の炎症の可能性があります。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.throb === "no") {
+      if (s.sound === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\n顎関節症の可能性があります。\nWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.sound === "no") {
+        return { reply: `ご回答ありがとうございます。\n\nしばらく様子を見ていただき、改善しない場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 入れ歯が合わない・壊れた ---- */
+  if (key === "入れ歯が合わない・壊れた") {
+    if (s.type === "1") {
+      // 壊れた
+      if (s.fully_broken === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\n使用はせず、破片はすべて持参の上、WEBもしくはお電話にてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.fully_broken === "no") {
+        if (s.discomfort === "yes") {
+          return { reply: `ご回答ありがとうございます。\n\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        if (s.discomfort === "no") {
+          return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。来院時に入れ歯を持参してください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+        }
+        return null;
+      }
+      return null;
+    }
+    if (s.type === "2") {
+      // 合わない
+      if (s.sore === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。来院時に入れ歯を持参してください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.sore === "no") {
+        return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。来院時に入れ歯を持参してください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 口内炎が治らない・痛い ---- */
+  if (key === "口内炎が治らない・痛い") {
+    if (s.two_weeks === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n稀に口腔内の粘膜疾患の可能性もありますので、一度受診をおすすめします。\nWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.two_weeks === "no") {
+      if (s.fever === "yes") {
+        return { reply: `ご回答ありがとうございます。\n\n内科への受診もご検討ください。\n口腔内の症状については、WEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      if (s.fever === "no") {
+        return { reply: `ご回答ありがとうございます。\n\n多くの場合、1〜2週間で自然に治ることがほとんどです。\nしばらく様子を見ていただき、改善しない場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /* ---- 定期検診・クリーニングを受けたい ---- */
+  if (key === "定期検診・クリーニングを受けたい") {
+    if (s.revisit === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。\n「【２回目以降の方】歯科衛生士による定期検診の予約」をお選びください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.revisit === "no") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。\n「【初診】歯のクリーニング・歯周病の検査、治療をしてほしい」をお選びください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 治療後に咬み合わせがおかしい気がする ---- */
+  if (key === "治療後に咬み合わせがおかしい気がする") {
+    if (s.feeling === "1") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBもしくはお電話にてご予約をお取りください。噛み合わせの調整をさせていただきます。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.feeling === "2") {
+      return { reply: `ご回答ありがとうございます。\n\n数日で慣れる場合がほとんどです。\n1週間以上続く場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 被せ物・詰め物を入れたばかりだが、違和感がある ---- */
+  if (key === "被せ物・詰め物を入れたばかりだが、違和感がある") {
+    if (s.type === "1") {
+      return { reply: `ご回答ありがとうございます。\n\nお電話もしくはWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.type === "2") {
+      return { reply: `ご回答ありがとうございます。\n\n新しい修復物に慣れるまで数日かかることがあります。\n1週間以上続く場合はWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 麻酔後のしびれ・感覚がおかしいのが続いている ---- */
+  if (key === "麻酔後のしびれ・感覚がおかしいのが続いている") {
+    if (s.elapsed === "1") {
+      return { reply: `ご回答ありがとうございます。\n\n麻酔が長く残る場合があります。もう少し様子を見てください。\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.elapsed === "2") {
+      return { reply: `ご回答ありがとうございます。\n\n稀に神経に影響が出るケースがあります。\nお電話にてご連絡ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 治療後に頬・顔が腫れてきた ---- */
+  if (key === "治療後に頬・顔が腫れてきた") {
+    if (s.fever === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n早めに受診が必要な場合があります。\nお電話にてご連絡ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.fever === "no") {
+      return { reply: `ご回答ありがとうございます。\n\n治療後の腫れは1週間ほどで落ち着くことが多いです。\n腫れが広がる・強くなる場合はお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 処方された痛み止めが効かない・痛みが強い ---- */
+  if (key === "処方された痛み止めが効かない・痛みが強い") {
+    if (s.throb === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n我慢できないレベルであればお電話にてご連絡ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.throb === "no") {
+      return { reply: `ご回答ありがとうございます。\n\n痛み止めは食後に用量を守って服用してください。\n改善しない場合はWEBもしくはお電話にてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 処方された薬がなくなった・足りない ---- */
+  if (key === "処方された薬がなくなった・足りない") {
+    if (s.medicine === "1") {
+      return { reply: `ご回答ありがとうございます。\n\n抗生物質は処方された分を飲み切ることが大切です。\n足りない場合はお電話にてご相談ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.medicine === "2") {
+      return { reply: `ご回答ありがとうございます。\n\n市販の痛み止め（ロキソニンSなど）で代用いただける場合があります。\n心配な場合はお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 薬にアレルギー反応が出た気がする ---- */
+  if (key === "薬にアレルギー反応が出た気がする（発疹・かゆみなど）") {
+    if (s.severity === "1") {
+      return { reply: `ご回答ありがとうございます。\n\nすぐに服用を中止してください。\nお電話にてご連絡ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.severity === "2") {
+      return { reply: `ご回答ありがとうございます。\n\nすぐに服用を中止してください。\n呼吸困難・顔の腫れなど重篤な症状がある場合は、すぐに救急へお問い合わせください。` };
+    }
+    return null;
+  }
+
+  /* ---- 縫合した糸が気になる・取れてしまった ---- */
+  if (key === "縫合した糸が気になる・取れてしまった") {
+    if (s.appointment === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n次の予約日にお越しください。\n痛みや出血がある場合はお電話ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.appointment === "no") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBもしくはお電話にてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 歯周病治療後も歯茎から血が出る ---- */
+  if (key === "歯周病治療後も歯茎から血が出る") {
+    if (s.timing === "1") {
+      return { reply: `ご回答ありがとうございます。\n\n歯周病治療後も、歯磨きの仕方によって出血する場合があります。\n次の定期検診時にご相談ください。WEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.timing === "2") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBもしくはお電話にてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- インプラントが痛い・ぐらつく気がする ---- */
+  if (key === "インプラントが痛い・ぐらつく気がする") {
+    if (s.throb === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\n早めの受診をおすすめします。\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.throb === "no") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBもしくはお電話にてご予約をお取りください。\nインプラント周囲の状態を確認させていただきます。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- インプラントの上の被せ物が取れた・外れた ---- */
+  if (key === "インプラントの上の被せ物が取れた・外れた") {
+    if (s.pain === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\nお電話にてご予約をお取りください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.pain === "no") {
+      return { reply: `ご回答ありがとうございます。\n\n取れた被せ物は捨てずに持参してください。\nWEBもしくはお電話にてご予約をお取りください。\n\nWEB予約：${WEB}\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 歯ぎしり用マウスピース（ナイトガード）が壊れた・なくした ---- */
+  if (key === "歯ぎしり用マウスピース（ナイトガード）が壊れた・なくした") {
+    if (s.issue === "1") {
+      return { reply: `ご回答ありがとうございます。\n\n破片をお持ちの場合は持参してください。\nWEBにてご予約をお取りください。再製作をご相談させていただきます。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.issue === "2") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。再製作のご相談をさせていただきます。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 矯正装置が外れた・壊れた（通院中の方）---- */
+  if (key === "矯正装置が外れた・壊れた（通院中の方）") {
+    if (s.issue === "1") {
+      return { reply: `ご回答ありがとうございます。\n\nお電話にてご連絡ください。\n\nお電話：${TEL}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.issue === "2") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。\n次回予約が近い場合はそのままお越しいただいても構いません。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
+  }
+
+  /* ---- 矯正のリテーナー（保定装置）が壊れた・合わない ---- */
+  if (key === "矯正のリテーナー（保定装置）が壊れた・合わない") {
+    if (s.retention === "yes") {
+      return { reply: `ご回答ありがとうございます。\n\nリテーナーを装着しないと後戻りの原因になります。\n早めにWEBにてご予約をお取りください。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    if (s.retention === "no") {
+      return { reply: `ご回答ありがとうございます。\n\nWEBにてご予約をお取りください。状態を確認させていただきます。\n\nWEB予約：${WEB}\n\n※会話が終わりましたら「会話を終了（履歴を消す）」を押してください。` };
+    }
+    return null;
   }
 
   return null;

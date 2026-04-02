@@ -171,7 +171,7 @@ function handleAddFaq_(e) {
     var token = String((e && e.parameter && e.parameter.token) || "").trim();
     if (!token) return json_({ ok: false, error: "missing token" });
 
-    var body = JSON.parse(e.postData.contents);
+    var body = parsePostJson_(e);
     var items = Array.isArray(body.items) ? body.items : [body];
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -206,7 +206,7 @@ function handleLog_(e) {
     var token = String((e && e.parameter && e.parameter.token) || "").trim();
     if (!token) return json_({ ok: false, error: "missing token" });
 
-    var body = JSON.parse(e.postData.contents);
+    var body = parsePostJson_(e);
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sh = ss.getSheetByName(SHEET_LOGS);
@@ -239,6 +239,23 @@ function handleLog_(e) {
 /* ======================================================================
  *  ユーティリティ関数
  * ====================================================================== */
+
+/**
+ * POST body を UTF-8 として安全にパースする
+ * GAS が UTF-8 バイト列を Latin-1 として読む場合の文字化けを修正
+ */
+function parsePostJson_(e) {
+  var raw = e.postData.contents;
+  // 0x80-0xFF の文字が含まれる場合、UTF-8 が Latin-1 として誤読されている
+  if (/[\u0080-\u00ff]/.test(raw)) {
+    var bytes = [];
+    for (var i = 0; i < raw.length; i++) {
+      bytes.push(raw.charCodeAt(i) & 0xFF);
+    }
+    raw = Utilities.newBlob(bytes).getDataAsString("UTF-8");
+  }
+  return JSON.parse(raw);
+}
 
 /** JSON レスポンスを返す */
 function json_(obj) {
